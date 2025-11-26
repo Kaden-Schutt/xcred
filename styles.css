@@ -1,0 +1,563 @@
+/**
+ * X Location Credibility - Styles
+ * Design language aligned with X/Twitter
+ */
+
+/* Base indicator styles - positioned below avatar */
+.xlocation-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 4px auto 0 auto;
+  padding: 2px;
+  line-height: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+  border: 2px solid transparent;
+  background: rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+}
+
+@media (prefers-color-scheme: dark) {
+  .xlocation-indicator {
+    background: rgba(255, 255, 255, 0.06);
+  }
+}
+
+.xlocation-indicator:hover {
+  transform: scale(1.1);
+  opacity: 0.9;
+}
+
+.xlocation-indicator:active {
+  transform: scale(1.05);
+}
+
+/* Flag image styles */
+.xlocation-flag-img {
+  width: 22px;
+  height: 15px;
+  object-fit: cover;
+  display: block;
+  border-radius: 2px;
+}
+
+/* Emoji fallback styles (for regions) */
+.xlocation-indicator:not(:has(img)) {
+  padding: 2px 3px;
+  font-size: 11px;
+  line-height: 1;
+  background: rgba(0, 0, 0, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  .xlocation-indicator:not(:has(img)) {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
+/* 6-Tier Credibility Color System */
+
+/* Tier 1 - Dark Blue - Highest Credibility (iOS + Clean + Match) */
+.xlocation-tier-1 {
+  border-color: #1DA1F2;
+}
+
+.xlocation-tier-1:not(:has(img)) {
+  background: rgba(29, 161, 242, 0.12);
+}
+
+/* Tier 2 - Green - High Credibility (Android + Match + Clean) */
+.xlocation-tier-2 {
+  border-color: #17BF63;
+}
+
+.xlocation-tier-2:not(:has(img)) {
+  background: rgba(23, 191, 99, 0.12);
+}
+
+/* Tier 3 - Yellow - Medium Credibility (VPN or Minor Issues) */
+.xlocation-tier-3 {
+  border-color: #FACC15;
+}
+
+.xlocation-tier-3:not(:has(img)) {
+  background: rgba(250, 204, 21, 0.12);
+}
+
+/* Tier 4 - Orange - Low Credibility (Multiple Red Flags) */
+.xlocation-tier-4 {
+  border-color: #FB923C;
+}
+
+.xlocation-tier-4:not(:has(img)) {
+  background: rgba(251, 146, 60, 0.12);
+}
+
+/* Tier 5 - Red - Extremely Suspicious (Major Mismatch) */
+.xlocation-tier-5 {
+  border-color: #EF4444;
+}
+
+.xlocation-tier-5:not(:has(img)) {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+/* Tier 6 - Grey - No Data */
+.xlocation-tier-6 {
+  border-color: #9CA3AF;
+  opacity: 0.7;
+}
+
+.xlocation-tier-6:not(:has(img)) {
+  background: rgba(156, 163, 175, 0.12);
+}
+
+/* Government Verified - Silver border */
+.xlocation-tier-government,
+.xlocation-government {
+  border-color: #C0C0C0;
+}
+
+.xlocation-tier-government:not(:has(img)),
+.xlocation-government:not(:has(img)) {
+  background: rgba(192, 192, 192, 0.12);
+}
+
+/* Government icon SVG styles */
+.xlocation-gov-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  display: block;
+  filter: brightness(0) invert(1); /* Make SVG white */
+}
+
+/* Legacy classes for backwards compatibility */
+/* Green - Location verified */
+.xlocation-match {
+  border-color: #17BF63;
+}
+
+.xlocation-match:not(:has(img)) {
+  background: rgba(23, 191, 99, 0.12);
+}
+
+/* Red - Location mismatch */
+.xlocation-mismatch {
+  border-color: #EF4444;
+}
+
+.xlocation-mismatch:not(:has(img)) {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+/* Blue - Connection data available */
+.xlocation-connection {
+  border-color: #1DA1F2;
+}
+
+.xlocation-connection:not(:has(img)) {
+  background: rgba(29, 161, 242, 0.12);
+}
+
+/* Yellow - Self-reported location only */
+.xlocation-display {
+  border-color: #FACC15;
+}
+
+.xlocation-display:not(:has(img)) {
+  background: rgba(250, 204, 21, 0.12);
+}
+
+/* Orange - VPN/Proxy detected */
+.xlocation-vpn {
+  border-color: #FB923C;
+}
+
+.xlocation-vpn:not(:has(img)) {
+  background: rgba(251, 146, 60, 0.12);
+}
+
+/* Gray - No location data */
+.xlocation-unknown {
+  border-color: #9CA3AF;
+  opacity: 0.7;
+}
+
+.xlocation-unknown:not(:has(img)) {
+  background: rgba(156, 163, 175, 0.12);
+}
+
+/* Dark mode adjustments */
+@media (prefers-color-scheme: dark) {
+  .xlocation-tier-6,
+  .xlocation-unknown {
+    border-color: #71767b;
+  }
+}
+
+/* Popup styles - X design language */
+.xlocation-popup {
+  position: absolute;
+  z-index: 10000;
+  min-width: 280px;
+  max-width: 320px;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: rgba(101, 119, 134, 0.2) 0px 0px 15px, rgba(101, 119, 134, 0.15) 0px 0px 3px 1px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 15px;
+  overflow: hidden;
+  color: #0f1419;
+}
+
+/* Dark mode - applied via JS based on X's theme */
+.xlocation-popup.xlocation-dark {
+  background: #000000;
+  color: #e7e9ea;
+  box-shadow: rgba(255, 255, 255, 0.2) 0px 0px 15px, rgba(255, 255, 255, 0.15) 0px 0px 3px 1px;
+}
+
+.xlocation-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid rgb(239, 243, 244);
+}
+
+.xlocation-dark .xlocation-popup-header {
+  border-bottom-color: rgb(47, 51, 54);
+}
+
+.xlocation-popup-title {
+  font-weight: 800;
+  font-size: 20px;
+  letter-spacing: -0.2px;
+}
+
+.xlocation-popup-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  cursor: pointer;
+  font-size: 20px;
+  color: #0f1419;
+  border-radius: 50%;
+  transition: background 0.2s ease;
+  margin: -8px -8px -8px 0;
+}
+
+.xlocation-popup-close:hover {
+  background: rgba(15, 20, 25, 0.1);
+}
+
+.xlocation-dark .xlocation-popup-close {
+  color: #e7e9ea;
+}
+
+.xlocation-dark .xlocation-popup-close:hover {
+  background: rgba(239, 243, 244, 0.1);
+}
+
+.xlocation-popup-status {
+  padding: 12px 16px;
+  font-weight: 700;
+  font-size: 14px;
+  text-align: center;
+  letter-spacing: 0.2px;
+}
+
+/* Tier-based status styles */
+.xlocation-status-tier1 {
+  background: rgba(29, 161, 242, 0.1);
+  color: #1DA1F2;
+}
+
+.xlocation-status-tier2 {
+  background: rgba(23, 191, 99, 0.1);
+  color: #17BF63;
+}
+
+.xlocation-status-tier3 {
+  background: rgba(250, 204, 21, 0.1);
+  color: #b59800;
+}
+
+.xlocation-dark .xlocation-status-tier3 {
+  color: #FACC15;
+}
+
+.xlocation-status-tier4 {
+  background: rgba(251, 146, 60, 0.1);
+  color: #FB923C;
+}
+
+.xlocation-status-tier5 {
+  background: rgba(239, 68, 68, 0.1);
+  color: #EF4444;
+  font-weight: 800;
+}
+
+.xlocation-status-tier6 {
+  background: rgba(156, 163, 175, 0.1);
+  color: #9CA3AF;
+}
+
+.xlocation-dark .xlocation-status-tier6 {
+  color: #71767b;
+}
+
+/* Government verified status */
+.xlocation-status-government {
+  background: rgba(192, 192, 192, 0.1);
+  color: #808080;
+}
+
+.xlocation-dark .xlocation-status-government {
+  color: #C0C0C0;
+}
+
+/* Party affiliation styles */
+.xlocation-popup-party {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.xlocation-party-icon {
+  font-size: 18px;
+}
+
+.xlocation-party-icon-img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
+/* Democrat icon in popup - blue tint */
+.xlocation-party-democrat .xlocation-party-icon-img {
+  filter: invert(27%) sepia(100%) saturate(1500%) hue-rotate(200deg) brightness(95%);
+}
+
+/* Republican icon in popup - red tint */
+.xlocation-party-republican .xlocation-party-icon-img {
+  filter: invert(12%) sepia(100%) saturate(5000%) hue-rotate(350deg) brightness(95%);
+}
+
+.xlocation-party-democrat {
+  background: rgba(0, 82, 165, 0.1);
+  color: #0052A5;
+}
+
+.xlocation-dark .xlocation-party-democrat {
+  color: #4da3ff;
+}
+
+.xlocation-party-republican {
+  background: rgba(191, 10, 48, 0.1);
+  color: #BF0A30;
+}
+
+.xlocation-dark .xlocation-party-republican {
+  color: #ff6680;
+}
+
+/* Legacy status classes for backwards compatibility */
+.xlocation-status-match {
+  background: rgba(23, 191, 99, 0.1);
+  color: #17BF63;
+}
+
+.xlocation-status-mismatch {
+  background: rgba(239, 68, 68, 0.1);
+  color: #EF4444;
+}
+
+.xlocation-status-connection {
+  background: rgba(29, 161, 242, 0.1);
+  color: #1DA1F2;
+}
+
+.xlocation-status-display {
+  background: rgba(250, 204, 21, 0.1);
+  color: #b59800;
+}
+
+.xlocation-dark .xlocation-status-display {
+  color: #FACC15;
+}
+
+.xlocation-status-unknown {
+  background: rgba(156, 163, 175, 0.1);
+  color: #9CA3AF;
+}
+
+.xlocation-dark .xlocation-status-unknown {
+  color: #71767b;
+}
+
+.xlocation-status-vpn {
+  background: rgba(251, 146, 60, 0.1);
+  color: #FB923C;
+}
+
+/* Score breakdown styles */
+.xlocation-popup-score {
+  padding: 12px 16px;
+  background: rgb(247, 249, 249);
+  border-top: 1px solid rgb(239, 243, 244);
+}
+
+.xlocation-dark .xlocation-popup-score {
+  background: rgb(22, 24, 28);
+  border-top-color: rgb(47, 51, 54);
+}
+
+.xlocation-score-factors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.xlocation-factor {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.xlocation-factor.positive {
+  background: rgba(23, 191, 99, 0.15);
+  color: #17BF63;
+}
+
+.xlocation-factor.negative {
+  background: rgba(239, 68, 68, 0.15);
+  color: #EF4444;
+}
+
+.xlocation-factor.neutral {
+  background: rgba(156, 163, 175, 0.15);
+  color: #6B7280;
+}
+
+.xlocation-factor.critical {
+  background: rgba(239, 68, 68, 0.25);
+  color: #EF4444;
+  font-weight: 700;
+  border: 1px solid #EF4444;
+}
+
+.xlocation-dark .xlocation-factor.positive {
+  background: rgba(23, 191, 99, 0.25);
+}
+
+.xlocation-dark .xlocation-factor.negative {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+.xlocation-dark .xlocation-factor.neutral {
+  background: rgba(156, 163, 175, 0.25);
+  color: #9CA3AF;
+}
+
+.xlocation-dark .xlocation-factor.critical {
+  background: rgba(239, 68, 68, 0.35);
+}
+
+.xlocation-popup-vpn-warning {
+  padding: 12px 16px;
+  background: rgba(255, 122, 0, 0.08);
+  border-left: 3px solid #ff7a00;
+  color: #ff7a00;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.xlocation-dark .xlocation-popup-vpn-warning {
+  background: rgba(255, 122, 0, 0.15);
+}
+
+.xlocation-popup-content {
+  padding: 16px;
+}
+
+.xlocation-popup-row {
+  padding: 12px 0;
+  font-size: 15px;
+  color: #0f1419;
+  border-bottom: 1px solid rgb(239, 243, 244);
+}
+
+.xlocation-popup-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.xlocation-popup-row:first-child {
+  padding-top: 0;
+}
+
+.xlocation-popup-row strong {
+  color: #536471;
+  font-weight: 400;
+  font-size: 13px;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.xlocation-dark .xlocation-popup-row {
+  color: #e7e9ea;
+  border-bottom-color: rgb(47, 51, 54);
+}
+
+.xlocation-dark .xlocation-popup-row strong {
+  color: #71767b;
+}
+
+.xlocation-popup-footer {
+  padding: 12px 16px;
+  background: rgb(247, 249, 249);
+  color: #536471;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.xlocation-dark .xlocation-popup-footer {
+  background: rgb(22, 24, 28);
+  color: #71767b;
+}
+
+/* Animation for loading state */
+.xlocation-indicator.xlocation-loading {
+  animation: xlocation-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes xlocation-pulse {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* Tooltip styles */
+.xlocation-indicator[data-xlocation-tooltip] {
+  position: relative;
+}
+
+/* Hide indicator when extension is disabled */
+.xlocation-indicator.xlocation-hidden {
+  display: none !important;
+}

@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XCred</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      width: 340px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-size: 15px;
+      color: #0f1419;
+      background: #ffffff;
+    }
+
+    body.dark {
+      background: #000000;
+      color: #e7e9ea;
+    }
+
+    .header {
+      padding: 16px;
+      border-bottom: 1px solid rgb(239, 243, 244);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    body.dark .header {
+      border-bottom-color: rgb(47, 51, 54);
+    }
+
+    .header-logo {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+    }
+
+    .header-text h1 {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.2px;
+    }
+
+    .header-text p {
+      font-size: 13px;
+      color: #536471;
+      margin-top: 2px;
+    }
+
+    body.dark .header-text p {
+      color: #71767b;
+    }
+
+    .content {
+      padding: 0;
+    }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      border-bottom: 1px solid rgb(239, 243, 244);
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .setting-row:hover {
+      background: rgba(0, 0, 0, 0.03);
+    }
+
+    body.dark .setting-row {
+      border-bottom-color: rgb(47, 51, 54);
+    }
+
+    body.dark .setting-row:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .setting-row:last-child {
+      border-bottom: none;
+    }
+
+    .setting-label {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .setting-label span {
+      font-weight: 400;
+      font-size: 15px;
+    }
+
+    .setting-label small {
+      color: #536471;
+      font-size: 13px;
+    }
+
+    body.dark .setting-label small {
+      color: #71767b;
+    }
+
+    /* X-style Toggle switch */
+    .toggle {
+      position: relative;
+      width: 44px;
+      height: 24px;
+      flex-shrink: 0;
+    }
+
+    .toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #cfd9de;
+      transition: 0.2s;
+      border-radius: 24px;
+    }
+
+    body.dark .toggle-slider {
+      background-color: #3d4144;
+    }
+
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 20px;
+      width: 20px;
+      left: 2px;
+      bottom: 2px;
+      background-color: white;
+      transition: 0.2s;
+      border-radius: 50%;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    }
+
+    .toggle input:checked + .toggle-slider {
+      background-color: #1d9bf0;
+    }
+
+    .toggle input:checked + .toggle-slider:before {
+      transform: translateX(20px);
+    }
+
+    .section-header {
+      padding: 12px 16px 8px;
+      font-size: 13px;
+      font-weight: 700;
+      color: #536471;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      background: rgb(247, 249, 249);
+      border-bottom: 1px solid rgb(239, 243, 244);
+    }
+
+    body.dark .section-header {
+      background: rgb(22, 24, 28);
+      color: #71767b;
+      border-bottom-color: rgb(47, 51, 54);
+    }
+
+    .legend {
+      padding: 0;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid rgb(239, 243, 244);
+    }
+
+    body.dark .legend-item {
+      border-bottom-color: rgb(47, 51, 54);
+    }
+
+    .legend-item:last-child {
+      border-bottom: none;
+    }
+
+    .legend-color {
+      width: 20px;
+      height: 14px;
+      border-radius: 3px;
+      border: 2px solid;
+      flex-shrink: 0;
+    }
+
+    /* Government - Silver */
+    .legend-color.government {
+      border-color: #C0C0C0;
+    }
+
+    /* Tier 1 - Dark Blue */
+    .legend-color.tier1 {
+      border-color: #1DA1F2;
+    }
+
+    /* Tier 2 - Green */
+    .legend-color.tier2 {
+      border-color: #17BF63;
+    }
+
+    /* Tier 3 - Yellow */
+    .legend-color.tier3 {
+      border-color: #FACC15;
+    }
+
+    /* Tier 4 - Orange */
+    .legend-color.tier4 {
+      border-color: #FB923C;
+    }
+
+    /* Tier 5 - Red */
+    .legend-color.tier5 {
+      border-color: #EF4444;
+    }
+
+    /* Tier 6 - Grey */
+    .legend-color.tier6 {
+      border-color: #9CA3AF;
+    }
+
+    body.dark .legend-color.tier6 {
+      border-color: #71767b;
+    }
+
+    /* Legend divider */
+    .legend-divider {
+      height: 1px;
+      background: rgb(239, 243, 244);
+      margin: 8px 16px;
+    }
+
+    body.dark .legend-divider {
+      background: rgb(47, 51, 54);
+    }
+
+    /* Legacy colors for backwards compatibility */
+    .legend-color.match {
+      border-color: #17BF63;
+    }
+
+    .legend-color.vpn {
+      border-color: #FB923C;
+    }
+
+    .legend-color.connection {
+      border-color: #1DA1F2;
+    }
+
+    .legend-color.unknown {
+      border-color: #9CA3AF;
+    }
+
+    body.dark .legend-color.unknown {
+      border-color: #71767b;
+    }
+
+    .legend-text {
+      font-size: 14px;
+      color: #0f1419;
+    }
+
+    body.dark .legend-text {
+      color: #e7e9ea;
+    }
+
+    .actions {
+      padding: 16px;
+      border-top: 1px solid rgb(239, 243, 244);
+    }
+
+    body.dark .actions {
+      border-top-color: rgb(47, 51, 54);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px 16px;
+      border: 1px solid rgb(207, 217, 222);
+      border-radius: 9999px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      background: transparent;
+      color: #0f1419;
+    }
+
+    body.dark .btn {
+      border-color: rgb(83, 100, 113);
+      color: #e7e9ea;
+    }
+
+    .btn:hover {
+      background: rgba(15, 20, 25, 0.1);
+    }
+
+    body.dark .btn:hover {
+      background: rgba(239, 243, 244, 0.1);
+    }
+
+    .status {
+      text-align: center;
+      padding: 12px 0 0;
+      font-size: 14px;
+      color: #00ba7c;
+      display: none;
+    }
+
+    .status.show {
+      display: block;
+    }
+
+    .footer {
+      padding: 16px;
+      text-align: center;
+      font-size: 13px;
+      color: #536471;
+      background: rgb(247, 249, 249);
+      line-height: 1.5;
+    }
+
+    body.dark .footer {
+      background: rgb(22, 24, 28);
+      color: #71767b;
+    }
+
+    /* Remote sync status */
+    .remote-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #536471;
+      border-bottom: 1px solid rgb(239, 243, 244);
+    }
+
+    body.dark .remote-status {
+      color: #71767b;
+      border-bottom-color: rgb(47, 51, 54);
+    }
+
+    .remote-status-icon {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #9CA3AF;
+    }
+
+    .remote-status-icon.connected {
+      background: #17BF63;
+    }
+
+    .remote-status-icon.disconnected {
+      background: #F4212E;
+    }
+
+    .remote-status-icon.disabled {
+      background: #9CA3AF;
+    }
+
+    .remote-warning {
+      padding: 12px 16px;
+      font-size: 12px;
+      color: #FB923C;
+      background: rgba(251, 146, 60, 0.1);
+      border-bottom: 1px solid rgb(239, 243, 244);
+    }
+
+    body.dark .remote-warning {
+      background: rgba(251, 146, 60, 0.15);
+      border-bottom-color: rgb(47, 51, 54);
+    }
+
+    .remote-profiles {
+      font-weight: 600;
+      color: #1DA1F2;
+    }
+
+    .btn-small {
+      padding: 6px 12px;
+      border: 1px solid rgb(207, 217, 222);
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      background: transparent;
+      color: #0f1419;
+      white-space: nowrap;
+    }
+
+    body.dark .btn-small {
+      border-color: rgb(83, 100, 113);
+      color: #e7e9ea;
+    }
+
+    .btn-small:hover {
+      background: rgba(15, 20, 25, 0.1);
+    }
+
+    body.dark .btn-small:hover {
+      background: rgba(239, 243, 244, 0.1);
+    }
+
+    .btn-small:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .support-link {
+      color: #1d9bf0;
+      text-decoration: none;
+      font-weight: 600;
+    }
+
+    .support-link:hover {
+      text-decoration: underline;
+    }
+
+    .copyright {
+      font-size: 11px;
+      opacity: 0.7;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="icons/icon48.png" alt="XCred" class="header-logo">
+    <div class="header-text">
+      <h1>XCred</h1>
+      <p>Convenient transparency for your X timeline</p>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="setting-row" onclick="document.getElementById('enabled').click()">
+      <div class="setting-label">
+        <span>Enable Extension</span>
+        <small>Show location indicators on posts</small>
+      </div>
+      <label class="toggle" onclick="event.stopPropagation()">
+        <input type="checkbox" id="enabled" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-row" onclick="document.getElementById('showFlags').click()">
+      <div class="setting-label">
+        <span>Show Flags</span>
+        <small>Display country flag icons</small>
+      </div>
+      <label class="toggle" onclick="event.stopPropagation()">
+        <input type="checkbox" id="showFlags" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-row" onclick="document.getElementById('showBorders').click()">
+      <div class="setting-label">
+        <span>Show Borders</span>
+        <small>Color-coded credibility borders</small>
+      </div>
+      <label class="toggle" onclick="event.stopPropagation()">
+        <input type="checkbox" id="showBorders" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="section-header">Remote Sync</div>
+
+    <div class="setting-row" onclick="document.getElementById('remoteSync').click()">
+      <div class="setting-label">
+        <span>Remote Cache Sync</span>
+        <small>Share cache with other users to reduce rate limits</small>
+      </div>
+      <label class="toggle" onclick="event.stopPropagation()">
+        <input type="checkbox" id="remoteSync" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="remote-status" id="remoteStatus">
+      <div class="remote-status-icon"></div>
+      <span class="remote-status-text">Checking connection...</span>
+    </div>
+
+    <div class="remote-warning" id="remoteWarning" style="display: none;">
+      <span>Disabling remote sync may cause rate limit issues with X's API.</span>
+    </div>
+
+    <div class="section-header">Credibility Levels</div>
+
+    <div class="legend">
+      <!-- Government Verified -->
+      <div class="legend-item">
+        <div class="legend-color government"></div>
+        <span class="legend-text">Government Verified</span>
+      </div>
+
+      <!-- Tier 1 - Highest -->
+      <div class="legend-item">
+        <div class="legend-color tier1"></div>
+        <span class="legend-text">Strong authenticity signals</span>
+      </div>
+      <!-- Tier 2 - High -->
+      <div class="legend-item">
+        <div class="legend-color tier2"></div>
+        <span class="legend-text">Good authenticity signals</span>
+      </div>
+      <!-- Tier 3 - Medium -->
+      <div class="legend-item">
+        <div class="legend-color tier3"></div>
+        <span class="legend-text">Some inconsistencies</span>
+      </div>
+      <!-- Tier 4 - Low -->
+      <div class="legend-item">
+        <div class="legend-color tier4"></div>
+        <span class="legend-text">Multiple concerns</span>
+      </div>
+      <!-- Tier 5 - Suspicious -->
+      <div class="legend-item">
+        <div class="legend-color tier5"></div>
+        <span class="legend-text">Significant red flags</span>
+      </div>
+      <!-- Tier 6 - Unknown -->
+      <div class="legend-item">
+        <div class="legend-color tier6"></div>
+        <span class="legend-text">Insufficient data</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="status" id="status"></div>
+
+  <div class="footer">
+    Data from X's public account transparency info.<br>
+    For transparency, not harassment.<br><br>
+    <a href="https://buymeacoffee.com/kadenschutt" target="_blank" class="support-link">Buy Me a Coffee</a><br>
+    <span class="copyright">&copy; 2025 Will Power Media LLC. All rights reserved.</span>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
