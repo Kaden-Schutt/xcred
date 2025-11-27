@@ -675,6 +675,214 @@
     .extension-status-icon.disabled {
       background: #9CA3AF;
     }
+
+    /* Main view larger toggle */
+    .main-toggle-container {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px;
+      cursor: pointer;
+      border-bottom: 1px solid rgb(239, 243, 244);
+    }
+
+    body.dark .main-toggle-container {
+      border-bottom-color: rgb(47, 51, 54);
+    }
+
+    .main-toggle-container:hover {
+      background: rgba(0, 0, 0, 0.03);
+    }
+
+    body.dark .main-toggle-container:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .main-toggle-label span {
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .toggle-large {
+      width: 56px;
+      height: 30px;
+    }
+
+    .toggle-large .toggle-slider:before {
+      width: 24px;
+      height: 24px;
+      bottom: 3px;
+      left: 3px;
+    }
+
+    .toggle-large input:checked + .toggle-slider:before {
+      transform: translateX(26px);
+    }
+
+    /* Collapsible legend */
+    .legend-header {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px 8px;
+      cursor: pointer;
+      user-select: none;
+      background: rgb(247, 249, 249);
+      border-bottom: 1px solid rgb(239, 243, 244);
+    }
+
+    body.dark .legend-header {
+      background: rgb(22, 24, 28);
+      border-bottom-color: rgb(47, 51, 54);
+    }
+
+    .legend-header:hover {
+      background: rgb(240, 243, 243);
+    }
+
+    body.dark .legend-header:hover {
+      background: rgb(28, 30, 35);
+    }
+
+    .legend-header .section-header {
+      padding: 0;
+      background: none;
+      border-bottom: none;
+    }
+
+    .legend-hint {
+      font-size: 11px;
+      color: #71767b;
+      margin-left: 8px;
+      font-weight: 400;
+    }
+
+    .legend-arrow {
+      margin-left: auto;
+      color: #536471;
+      font-size: 12px;
+      transition: transform 0.2s ease;
+    }
+
+    body.dark .legend-arrow {
+      color: #71767b;
+    }
+
+    .legend-header.expanded .legend-arrow {
+      transform: rotate(90deg);
+    }
+
+    .legend-header.expanded .legend-hint {
+      display: none;
+    }
+
+    .legend.collapsed {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+
+    .legend.expanded {
+      max-height: 400px;
+      transition: max-height 0.3s ease;
+    }
+
+    /* Info icon tooltip for peer validation */
+    .info-icon {
+      display: inline-block;
+      cursor: help;
+      font-size: 12px;
+      color: #1d9bf0;
+      margin-left: 4px;
+      position: relative;
+    }
+
+    .info-icon:hover::after {
+      content: attr(title);
+      position: absolute;
+      left: 50%;
+      bottom: 100%;
+      transform: translateX(-50%);
+      background: #0f1419;
+      color: white;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 400;
+      white-space: normal;
+      width: 220px;
+      z-index: 1000;
+      margin-bottom: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      line-height: 1.4;
+    }
+
+    body.dark .info-icon:hover::after {
+      background: #fff;
+      color: #0f1419;
+    }
+
+    /* Validator budget display */
+    .validator-budget {
+      padding: 8px 16px;
+      font-size: 12px;
+      color: #536471;
+      background: rgb(247, 249, 249);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      border-bottom: 1px solid rgb(239, 243, 244);
+    }
+
+    body.dark .validator-budget {
+      background: rgb(22, 24, 28);
+      color: #71767b;
+      border-bottom-color: rgb(47, 51, 54);
+    }
+
+    .budget-count {
+      font-weight: 700;
+      color: #1d9bf0;
+    }
+
+    .budget-reset {
+      opacity: 0.7;
+      font-size: 11px;
+    }
+
+    /* P2P status indicator */
+    .p2p-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #536471;
+      border-bottom: 1px solid rgb(239, 243, 244);
+    }
+
+    body.dark .p2p-status {
+      color: #71767b;
+      border-bottom-color: rgb(47, 51, 54);
+    }
+
+    .p2p-status-icon {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #9CA3AF;
+    }
+
+    .p2p-status-icon.connected {
+      background: #17BF63;
+    }
+
+    .p2p-status-icon.disconnected {
+      background: #F4212E;
+    }
+
+    .p2p-status-icon.disabled {
+      background: #9CA3AF;
+    }
   </style>
 </head>
 <body>
@@ -707,6 +915,17 @@
         </div>
       </div>
 
+      <!-- Enable/Disable Toggle (Main View - Larger) -->
+      <div class="main-toggle-container" onclick="document.getElementById('enabled').click()">
+        <div class="main-toggle-label">
+          <span>Enable Extension</span>
+        </div>
+        <label class="toggle toggle-large" onclick="event.stopPropagation()">
+          <input type="checkbox" id="enabled" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
       <!-- Extension status -->
       <div class="extension-status" id="extensionStatus">
         <div class="extension-status-icon" id="extensionStatusIcon"></div>
@@ -720,9 +939,14 @@
       </div>
 
       <div class="content">
-        <div class="section-header">Credibility Levels</div>
+        <!-- Collapsible Legend -->
+        <div class="legend-header" id="legendToggle">
+          <span class="section-header">Credibility Legend</span>
+          <span class="legend-hint">(click to expand)</span>
+          <span class="legend-arrow">▶</span>
+        </div>
 
-        <div class="legend">
+        <div class="legend collapsed" id="legendContent">
           <!-- Government Verified -->
           <div class="legend-item">
             <div class="legend-color government"></div>
@@ -784,17 +1008,6 @@
       </div>
 
       <div class="settings-content">
-        <div class="setting-row" onclick="document.getElementById('enabled').click()">
-          <div class="setting-label">
-            <span>Enable Extension</span>
-            <small>Show location indicators on posts</small>
-          </div>
-          <label class="toggle" onclick="event.stopPropagation()">
-            <input type="checkbox" id="enabled" checked>
-            <span class="toggle-slider"></span>
-          </label>
-        </div>
-
         <div class="setting-row" onclick="document.getElementById('showFlags').click()">
           <div class="setting-label">
             <span>Show Flags</span>
@@ -845,11 +1058,49 @@
           <span>Disabling remote sync may cause rate limit issues with X's API.</span>
         </div>
 
-        <div class="section-header">Updates</div>
+        <div class="section-header">P2P Network</div>
+
+        <div class="setting-row" onclick="document.getElementById('gunSync').click()">
+          <div class="setting-label">
+            <span>P2P Cache Sync</span>
+            <small>Share cache with other XCred users via P2P</small>
+          </div>
+          <label class="toggle" onclick="event.stopPropagation()">
+            <input type="checkbox" id="gunSync" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-row" onclick="document.getElementById('peerValidation').click()">
+          <div class="setting-label">
+            <span>
+              Peer Validation
+              <span class="info-icon" title="Having this enabled will allow your browser to verify profile data for peers, even if that profile has never appeared on your timeline. Limited to 25 validations per hour.">i</span>
+            </span>
+            <small>Help verify profiles for other users (25/hour max)</small>
+          </div>
+          <label class="toggle" onclick="event.stopPropagation()">
+            <input type="checkbox" id="peerValidation" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <!-- Validator budget display -->
+        <div class="validator-budget" id="validatorBudget">
+          <span class="budget-label">Validations remaining:</span>
+          <span class="budget-count" id="budgetCount">25</span>
+          <span class="budget-reset">resets hourly</span>
+        </div>
+
+        <!-- P2P Status -->
+        <div class="p2p-status" id="p2pStatus">
+          <div class="p2p-status-icon" id="p2pStatusIcon"></div>
+          <span class="p2p-status-text" id="p2pStatusText">P2P network connecting...</span>
+        </div>
 
         <!-- Version info -->
         <div class="version-info">
-          Version <span id="currentVersion">1.1.2</span>
+          Version <span id="currentVersion">1.2.0</span>
           <span class="check-update-btn" id="manualCheck">Check for Updates</span>
         </div>
       </div>

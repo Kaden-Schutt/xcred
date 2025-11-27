@@ -33,6 +33,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   const remoteWarningEl = document.getElementById('remoteWarning');
   const statusEl = document.getElementById('status');
 
+  // P2P Network elements
+  const gunSyncToggle = document.getElementById('gunSync');
+  const peerValidationToggle = document.getElementById('peerValidation');
+  const validatorBudgetEl = document.getElementById('validatorBudget');
+  const budgetCountEl = document.getElementById('budgetCount');
+  const p2pStatusIconEl = document.getElementById('p2pStatusIcon');
+  const p2pStatusTextEl = document.getElementById('p2pStatusText');
+
   // Settings panel elements
   const settingsPanel = document.getElementById('settingsPanel');
   const openSettingsBtn = document.getElementById('openSettings');
@@ -90,7 +98,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         showFlags: true,
         showBorders: true,
         autoUpdate: true,
-        remoteSync: true // Default to enabled
+        remoteSync: true,
+        gunSync: true,
+        peerValidation: true
       };
 
       enabledToggle.checked = settings.enabled;
@@ -98,6 +108,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       showBordersToggle.checked = settings.showBorders;
       autoUpdateToggle.checked = settings.autoUpdate !== false; // Default true
       remoteSyncToggle.checked = settings.remoteSync !== false; // Default true
+
+      // P2P settings
+      if (gunSyncToggle) gunSyncToggle.checked = settings.gunSync !== false; // Default true
+      if (peerValidationToggle) peerValidationToggle.checked = settings.peerValidation !== false; // Default true
 
       // Update extension status indicator
       updateExtensionStatus(settings.enabled);
@@ -107,6 +121,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Check remote status
       checkRemoteStatus(remoteSyncToggle.checked);
+
+      // Check P2P status
+      checkP2PStatus(settings.gunSync !== false);
 
       // Check for updates
       checkForUpdates();
@@ -122,7 +139,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       showFlags: showFlagsToggle.checked,
       showBorders: showBordersToggle.checked,
       autoUpdate: autoUpdateToggle.checked,
-      remoteSync: remoteSyncToggle.checked
+      remoteSync: remoteSyncToggle.checked,
+      gunSync: gunSyncToggle ? gunSyncToggle.checked : true,
+      peerValidation: peerValidationToggle ? peerValidationToggle.checked : true
     };
 
     try {
@@ -240,6 +259,87 @@ document.addEventListener('DOMContentLoaded', async () => {
     return num.toString();
   };
 
+  // Check P2P network status
+  const checkP2PStatus = async (isEnabled) => {
+    if (!p2pStatusIconEl || !p2pStatusTextEl) return;
+
+    if (!isEnabled) {
+      p2pStatusIconEl.className = 'p2p-status-icon disabled';
+      p2pStatusTextEl.textContent = 'P2P sync disabled';
+      if (validatorBudgetEl) validatorBudgetEl.style.display = 'none';
+      return;
+    }
+
+    // Try to get P2P status from content script
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+
+      if (tab && (tab.url.includes('x.com') || tab.url.includes('twitter.com'))) {
+        // Add timeout to prevent hanging
+        const statusPromise = chrome.tabs.sendMessage(tab.id, { type: 'GET_P2P_STATUS' });
+        const timeoutPromise = new Promise((resolve) =>
+          setTimeout(() => resolve({ timeout: true }), 3000)
+        );
+
+        const response = await Promise.race([statusPromise, timeoutPromise]);
+
+        if (response && !response.timeout && response.initialized) {
+          p2pStatusIconEl.className = 'p2p-status-icon connected';
+          p2pStatusTextEl.textContent = 'P2P network connected';
+
+          // Update validator budget
+          if (budgetCountEl && response.budget) {
+            budgetCountEl.textContent = response.budget.remaining;
+            if (validatorBudgetEl) validatorBudgetEl.style.display = 'flex';
+          }
+        } else if (response && response.timeout) {
+          // Timeout - show as connecting
+          p2pStatusIconEl.className = 'p2p-status-icon';
+          p2pStatusTextEl.textContent = 'P2P network connecting...';
+          if (validatorBudgetEl) validatorBudgetEl.style.display = 'none';
+        } else {
+          p2pStatusIconEl.className = 'p2p-status-icon disconnected';
+          p2pStatusTextEl.textContent = 'P2P network unavailable';
+          if (validatorBudgetEl) validatorBudgetEl.style.display = 'none';
+        }
+      } else {
+        p2pStatusIconEl.className = 'p2p-status-icon';
+        p2pStatusTextEl.textContent = 'Open X/Twitter to check P2P status';
+        if (validatorBudgetEl) validatorBudgetEl.style.display = 'none';
+      }
+    } catch (e) {
+      console.error('[XCred Popup] Error checking P2P status:', e);
+      p2pStatusIconEl.className = 'p2p-status-icon';
+      p2pStatusTextEl.textContent = 'Open X/Twitter to check P2P status';
+      if (validatorBudgetEl) validatorBudgetEl.style.display = 'none';
+    }
+  };
+
+  // Handle Gun sync toggle change
+  const handleGunSyncChange = async () => {
+    await saveSettings();
+    const isEnabled = gunSyncToggle ? gunSyncToggle.checked : true;
+    checkP2PStatus(isEnabled);
+
+    if (isEnabled) {
+      showStatus('P2P sync enabled');
+    } else {
+      showStatus('P2P sync disabled');
+    }
+  };
+
+  // Handle peer validation toggle change
+  const handlePeerValidationChange = async () => {
+    await saveSettings();
+    const isEnabled = peerValidationToggle ? peerValidationToggle.checked : true;
+
+    if (isEnabled) {
+      showStatus('Peer validation enabled');
+    } else {
+      showStatus('Peer validation disabled');
+    }
+  };
+
   // Show status message
   const showStatus = (message, isError = false) => {
     statusEl.textContent = message;
@@ -347,6 +447,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   autoUpdateToggle.addEventListener('change', saveSettings);
   remoteSyncToggle.addEventListener('change', handleRemoteSyncChange);
 
+  // P2P settings event listeners
+  if (gunSyncToggle) {
+    gunSyncToggle.addEventListener('change', handleGunSyncChange);
+  }
+  if (peerValidationToggle) {
+    peerValidationToggle.addEventListener('change', handlePeerValidationChange);
+  }
+
   // Update-related event listeners
   if (manualCheckBtn) {
     manualCheckBtn.addEventListener('click', performManualUpdateCheck);
@@ -359,6 +467,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   if (dismissUpdateBtn) {
     dismissUpdateBtn.addEventListener('click', dismissUpdate);
+  }
+
+  // Legend collapse toggle
+  const legendToggle = document.getElementById('legendToggle');
+  const legendContent = document.getElementById('legendContent');
+
+  if (legendToggle && legendContent) {
+    legendToggle.addEventListener('click', () => {
+      legendToggle.classList.toggle('expanded');
+      legendContent.classList.toggle('collapsed');
+      legendContent.classList.toggle('expanded');
+    });
   }
 
   // Load settings on popup open

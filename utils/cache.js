@@ -201,14 +201,29 @@ const XLocationCache = {
       return indexedDBResult;
     }
 
-    // TIER 3: Check remote cache (Supabase)
-    if (this.useRemoteCache && typeof XLocationRemote !== 'undefined' && XLocationRemote.isEnabled) {
+    // TIER 3: Check remote cache (hybrid: Gun.js + Supabase in parallel)
+    if (this.useRemoteCache) {
       try {
-        const remoteData = await XLocationRemote.get(username);
+        const remoteData = await this.getFromRemoteHybrid(key);
         if (remoteData && this.isValidCacheEntry(remoteData)) {
+          // Check if data is stale and needs refresh
+          if (typeof XLocationRemote !== 'undefined' && XLocationRemote.isStale(remoteData)) {
+            // Data is stale - trigger refresh flow but return stale data for now
+            if (typeof XLocationGun !== 'undefined' && XLocationGun.isReady()) {
+              XLocationGun.handleStaleData(key, remoteData).catch(() => {});
+            }
+          }
+
           // Backfill to local caches for faster future access
           this.addToMemoryCache(key, remoteData);
-          await this.setLocal(username, remoteData); // Save to IndexedDB without re-uploading to remote
+          await this.setLocal(username, remoteData);
+
+          // If Gun.js had consensus, sync to Supabase
+          if (remoteData._cacheSource === 'gun' && remoteData._peerConsensus >= 2) {
+            if (typeof XLocationGun !== 'undefined') {
+              XLocationGun.syncConsensusToSupabase(key).catch(() => {});
+            }
+          }
 
           return remoteData;
         }
@@ -218,6 +233,70 @@ const XLocationCache = {
     }
 
     return null;
+  },
+
+  /**
+   * Fetch from hybrid remote layer (Gun.js + Supabase in parallel)
+   * @param {string} key - Lowercase username
+   * @returns {Promise<Object|null>} Best available data
+   */
+  async getFromRemoteHybrid(key) {
+    const promises = [];
+
+    // Gun.js P2P lookup
+    if (typeof XLocationGun !== 'undefined' && XLocationGun.isReady()) {
+      promises.push(
+        XLocationGun.get(key).catch(() => null)
+      );
+    } else {
+      promises.push(Promise.resolve(null));
+    }
+
+    // Supabase lookup
+    if (typeof XLocationRemote !== 'undefined' && XLocationRemote.isEnabled) {
+      promises.push(
+        XLocationRemote.get(key).catch(() => null)
+      );
+    } else {
+      promises.push(Promise.resolve(null));
+    }
+
+    const [gunResult, supabaseResult] = await Promise.allSettled(promises);
+
+    const gunData = gunResult.status === 'fulfilled' ? gunResult.value : null;
+    const supaData = supabaseResult.status === 'fulfilled' ? supabaseResult.value : null;
+
+    return this.resolveHybridData(gunData, supaData);
+  },
+
+  /**
+   * Resolve conflict between Gun.js and Supabase data
+   * @param {Object|null} gunData - Data from Gun.js P2P
+   * @param {Object|null} supaData - Data from Supabase
+   * @returns {Object|null} Resolved data
+   */
+  resolveHybridData(gunData, supaData) {
+    // Neither has data
+    if (!gunData && !supaData) return null;
+
+    // Only one has data
+    if (!gunData) return { ...supaData, _cacheSource: 'remote' };
+    if (!supaData) return { ...gunData, _cacheSource: 'gun' };
+
+    // Both have data - Gun.js consensus wins if threshold met
+    if (gunData._peerConsensus >= 2) {
+      return { ...gunData, _cacheSource: 'gun' };
+    }
+
+    // Otherwise, prefer most recent timestamp
+    const gunTime = gunData.timestamp || gunData._updatedAt || 0;
+    const supaTime = supaData.timestamp || 0;
+
+    if (gunTime > supaTime) {
+      return { ...gunData, _cacheSource: 'gun' };
+    }
+
+    return { ...supaData, _cacheSource: 'remote' };
   },
 
   /**
@@ -281,10 +360,25 @@ const XLocationCache = {
       request.onsuccess = () => resolve();
     });
 
-    // Also save to remote cache (fire and forget - don't block on this)
+    // Also save to remote caches (fire and forget - don't block on these)
+
+    // Gun.js P2P broadcast (async, non-blocking)
+    if (typeof XLocationGun !== 'undefined' && XLocationGun.isReady()) {
+      XLocationGun.set(username, data).catch(() => {});
+    }
+
+    // Supabase: INSERT for new profiles, let Gun.js consensus handle updates
     if (this.useRemoteCache && typeof XLocationRemote !== 'undefined' && XLocationRemote.isEnabled) {
-      XLocationRemote.set(username, profileData).catch(e => {
-        // Silently ignore remote save errors
+      // Check if profile exists to determine insert vs skip
+      XLocationRemote.exists(username).then(exists => {
+        if (!exists) {
+          // New profile - insert directly (no consensus needed)
+          XLocationRemote.insert(username, profileData).catch(() => {});
+        }
+        // Existing profile - let Gun.js consensus handle updates via mergeFromConsensus
+      }).catch(() => {
+        // Existence check failed, try insert anyway (will fail silently if exists)
+        XLocationRemote.insert(username, profileData).catch(() => {});
       });
     }
   },

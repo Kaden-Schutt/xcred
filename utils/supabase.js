@@ -107,6 +107,127 @@ const XLocationRemote = {
     return headers;
   },
 
+  // ========== CONSENSUS TRACKING ==========
+
+  /**
+   * Check if profile exists in Supabase
+   * @param {string} username - The username to check
+   * @returns {Promise<boolean>} Whether profile exists
+   */
+  async exists(username) {
+    if (!this.isConfigured) return false;
+
+    try {
+      const key = username.toLowerCase();
+      const url = this.buildUrl('profiles', `username=eq.${encodeURIComponent(key)}&select=username`);
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: this.getHeaders()
+      });
+
+      if (!response.ok) return false;
+
+      const data = await response.json();
+      return data && data.length > 0;
+    } catch (e) {
+      return false;
+    }
+  },
+
+  /**
+   * Check if Supabase data is stale (older than threshold)
+   * @param {Object} data - Profile data with timestamp
+   * @param {number} maxAgeHours - Max age in hours (default 24)
+   * @returns {boolean} Whether data is stale
+   */
+  isStale(data, maxAgeHours = 24) {
+    if (!data || !data.timestamp) return true;
+    const age = Date.now() - data.timestamp;
+    return age > (maxAgeHours * 60 * 60 * 1000);
+  },
+
+  /**
+   * INSERT new profile (no consensus required)
+   * @param {string} username - The username
+   * @param {Object} profileData - The profile data
+   * @returns {Promise<boolean>} Success status
+   */
+  async insert(username, profileData) {
+    if (!this.isEnabled || !this.isConfigured) return false;
+
+    // Don't insert error or rate-limited entries
+    if (profileData.error || profileData.rateLimited) return false;
+
+    // Don't insert invalid entries
+    if (!this.isValidForRemote(profileData)) return false;
+
+    try {
+      const key = username.toLowerCase();
+      const dbData = this.profileToDb(key, profileData);
+
+      // Use POST without on_conflict - will fail if exists (that's ok)
+      const response = await fetch(
+        this.buildUrl('profiles'),
+        {
+          method: 'POST',
+          headers: this.getHeaders({ prefer: 'return=minimal' }),
+          body: JSON.stringify(dbData)
+        }
+      );
+
+      // 201 = inserted, 409 = conflict (already exists) - both are acceptable
+      return response.ok || response.status === 409;
+    } catch (e) {
+      console.error('[XCred] Remote insert failed:', e);
+      return false;
+    }
+  },
+
+  /**
+   * MERGE update from Gun.js consensus (consensus required)
+   * @param {string} username - The username
+   * @param {Object} data - Profile data from Gun.js
+   * @param {number} consensusCount - Number of peers in consensus
+   * @returns {Promise<boolean>} Success status
+   */
+  async mergeFromConsensus(username, data, consensusCount) {
+    if (!this.isEnabled || !this.isConfigured) return false;
+
+    if (consensusCount < 2) {
+      console.log('[XCred] Consensus threshold not met, skipping Supabase merge');
+      return false;
+    }
+
+    try {
+      const key = username.toLowerCase();
+      const dbData = this.profileToDb(key, data);
+
+      // Add consensus tracking fields
+      dbData.consensus_source = 'gun';
+      dbData.consensus_count = consensusCount;
+      dbData.consensus_at = new Date().toISOString();
+
+      // PATCH to update existing record only
+      const response = await fetch(
+        this.buildUrl('profiles', `username=eq.${encodeURIComponent(key)}`),
+        {
+          method: 'PATCH',
+          headers: this.getHeaders({ prefer: 'return=minimal' }),
+          body: JSON.stringify(dbData)
+        }
+      );
+
+      if (response.ok) {
+        console.log(`[XCred] Merged consensus data for ${username} (${consensusCount} peers)`);
+      }
+      return response.ok;
+    } catch (e) {
+      console.error('[XCred] Remote merge failed:', e);
+      return false;
+    }
+  },
+
   /**
    * Fetch a profile from remote cache
    * @param {string} username - The username to look up

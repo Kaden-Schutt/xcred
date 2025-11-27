@@ -170,6 +170,21 @@
       // Extract auth tokens for API access
       this.extractAuthTokens();
 
+      // Initialize Gun.js P2P (non-blocking)
+      if (typeof XLocationGun !== 'undefined') {
+        XLocationGun.init().then(success => {
+          if (success) {
+            console.log('[XCred] Gun.js P2P initialized');
+            const budget = XLocationGun.getBudgetInfo();
+            console.log(`[XCred] Validator budget: ${budget.remaining}/${budget.max}`);
+          } else {
+            console.log('[XCred] Gun.js unavailable or disabled, using Supabase-only');
+          }
+        }).catch(e => {
+          console.warn('[XCred] Gun.js initialization error:', e);
+        });
+      }
+
       // Process existing tweets
       this.processTimeline();
 
@@ -177,6 +192,16 @@
       this.observeTimeline();
 
       console.log('[XCred] Initialized successfully');
+    },
+
+    /**
+     * Fetch profile from X API (exposed for Gun.js peer validation)
+     * @param {string} username - The username to fetch
+     * @returns {Promise<object|null>} Profile data or null
+     */
+    async fetchProfileFromAPI(username) {
+      // Use the internal fetchFromAPI method
+      return await this.fetchFromAPI(username);
     },
 
     /**
@@ -1569,6 +1594,9 @@
     }
   };
 
+  // Expose XLocation to window for Gun.js peer validation
+  window.XLocation = XLocation;
+
   // Initialize when DOM is ready
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', () => XLocation.init());
@@ -1585,6 +1613,22 @@
       if (typeof XLocationRemote !== 'undefined') {
         XLocationRemote.isEnabled = changes.xlocation_settings.newValue.remoteSync !== false;
         XLocationCache.useRemoteCache = XLocationRemote.isEnabled;
+      }
+
+      // Update Gun.js settings (will re-init if needed)
+      if (typeof XLocationGun !== 'undefined') {
+        const newSettings = changes.xlocation_settings.newValue;
+        const gunSyncChanged = 'gunSync' in newSettings;
+        const peerValidationChanged = 'peerValidation' in newSettings;
+
+        if (gunSyncChanged && newSettings.gunSync && !XLocationGun.isReady()) {
+          // Gun.js sync was re-enabled, try to initialize
+          XLocationGun.init().catch(() => {});
+        }
+
+        if (peerValidationChanged) {
+          console.log(`[XCred] Peer validation ${newSettings.peerValidation ? 'enabled' : 'disabled'}`);
+        }
       }
 
       console.log('[XCred] Settings updated');
@@ -1638,6 +1682,24 @@
       }
       console.log('[XCred Content] XLocationRemote not defined');
       sendResponse({ configured: false });
+    }
+
+    if (message.type === 'GET_P2P_STATUS') {
+      console.log('[XCred Content] GET_P2P_STATUS received');
+      // Get P2P (Gun.js) status
+      if (typeof XLocationGun !== 'undefined') {
+        const status = XLocationGun.getStatus();
+        console.log('[XCred Content] Gun.js status:', status);
+        sendResponse({
+          initialized: status.initialized,
+          connected: status.connected,
+          nodeId: status.nodeId,
+          budget: status.budget
+        });
+      } else {
+        console.log('[XCred Content] XLocationGun not defined');
+        sendResponse({ initialized: false });
+      }
     }
 
     return false;
