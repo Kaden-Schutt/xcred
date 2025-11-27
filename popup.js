@@ -27,10 +27,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   const enabledToggle = document.getElementById('enabled');
   const showFlagsToggle = document.getElementById('showFlags');
   const showBordersToggle = document.getElementById('showBorders');
+  const autoUpdateToggle = document.getElementById('autoUpdate');
   const remoteSyncToggle = document.getElementById('remoteSync');
   const remoteStatusEl = document.getElementById('remoteStatus');
   const remoteWarningEl = document.getElementById('remoteWarning');
   const statusEl = document.getElementById('status');
+
+  // Update-related elements
+  const updateBanner = document.getElementById('updateBanner');
+  const updateVersion = document.getElementById('updateVersion');
+  const downloadUpdateBtn = document.getElementById('downloadUpdate');
+  const viewReleaseNotesBtn = document.getElementById('viewReleaseNotes');
+  const dismissUpdateBtn = document.getElementById('dismissUpdate');
+  const manualCheckBtn = document.getElementById('manualCheck');
+  const currentVersionEl = document.getElementById('currentVersion');
+
+  // Store current update info
+  let currentUpdateInfo = null;
 
   // Load current settings
   const loadSettings = async () => {
@@ -40,12 +53,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         enabled: true,
         showFlags: true,
         showBorders: true,
+        autoUpdate: true,
         remoteSync: true // Default to enabled
       };
 
       enabledToggle.checked = settings.enabled;
       showFlagsToggle.checked = settings.showFlags;
       showBordersToggle.checked = settings.showBorders;
+      autoUpdateToggle.checked = settings.autoUpdate !== false; // Default true
       remoteSyncToggle.checked = settings.remoteSync !== false; // Default true
 
       // Update warning visibility
@@ -53,6 +68,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Check remote status
       checkRemoteStatus(remoteSyncToggle.checked);
+
+      // Check for updates
+      checkForUpdates();
     } catch (e) {
       console.error('Failed to load settings:', e);
     }
@@ -64,6 +82,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       enabled: enabledToggle.checked,
       showFlags: showFlagsToggle.checked,
       showBorders: showBordersToggle.checked,
+      autoUpdate: autoUpdateToggle.checked,
       remoteSync: remoteSyncToggle.checked
     };
 
@@ -190,11 +209,107 @@ document.addEventListener('DOMContentLoaded', async () => {
     }, 2000);
   };
 
+  // Check for updates
+  const checkForUpdates = async () => {
+    try {
+      const response = await chrome.runtime.sendMessage({ type: 'GET_UPDATE_INFO' });
+      if (response && response.success && response.updateInfo && !response.updateDismissed) {
+        currentUpdateInfo = response.updateInfo;
+        showUpdateBanner(response.updateInfo);
+      }
+    } catch (e) {
+      console.error('[XCred Popup] Failed to check for updates:', e);
+    }
+  };
+
+  // Show update banner
+  const showUpdateBanner = (updateInfo) => {
+    if (!updateInfo || !updateBanner) return;
+
+    updateVersion.textContent = `Version ${updateInfo.version} is now available (you have ${updateInfo.currentVersion})`;
+    updateBanner.classList.add('show');
+  };
+
+  // Hide update banner
+  const hideUpdateBanner = () => {
+    if (updateBanner) {
+      updateBanner.classList.remove('show');
+    }
+  };
+
+  // Manual update check
+  const performManualUpdateCheck = async () => {
+    try {
+      manualCheckBtn.textContent = 'Checking...';
+      manualCheckBtn.style.pointerEvents = 'none';
+
+      const response = await chrome.runtime.sendMessage({ type: 'CHECK_FOR_UPDATES' });
+
+      if (response && response.success) {
+        if (response.updateInfo) {
+          currentUpdateInfo = response.updateInfo;
+          showUpdateBanner(response.updateInfo);
+          showStatus('Update available!');
+        } else {
+          showStatus('You have the latest version');
+        }
+      } else {
+        showStatus('Failed to check for updates', true);
+      }
+    } catch (e) {
+      console.error('[XCred Popup] Manual update check failed:', e);
+      showStatus('Failed to check for updates', true);
+    } finally {
+      manualCheckBtn.textContent = 'Check for updates';
+      manualCheckBtn.style.pointerEvents = 'auto';
+    }
+  };
+
+  // Download update
+  const downloadUpdate = () => {
+    if (currentUpdateInfo) {
+      window.open(currentUpdateInfo.downloadUrl, '_blank');
+      showStatus('Opening download page...');
+    }
+  };
+
+  // View release notes
+  const viewReleaseNotes = () => {
+    if (currentUpdateInfo) {
+      window.open(currentUpdateInfo.releaseUrl, '_blank');
+    }
+  };
+
+  // Dismiss update
+  const dismissUpdate = async () => {
+    try {
+      await chrome.runtime.sendMessage({ type: 'DISMISS_UPDATE' });
+      hideUpdateBanner();
+    } catch (e) {
+      console.error('[XCred Popup] Failed to dismiss update:', e);
+    }
+  };
+
   // Event listeners
   enabledToggle.addEventListener('change', saveSettings);
   showFlagsToggle.addEventListener('change', saveSettings);
   showBordersToggle.addEventListener('change', saveSettings);
+  autoUpdateToggle.addEventListener('change', saveSettings);
   remoteSyncToggle.addEventListener('change', handleRemoteSyncChange);
+
+  // Update-related event listeners
+  if (manualCheckBtn) {
+    manualCheckBtn.addEventListener('click', performManualUpdateCheck);
+  }
+  if (downloadUpdateBtn) {
+    downloadUpdateBtn.addEventListener('click', downloadUpdate);
+  }
+  if (viewReleaseNotesBtn) {
+    viewReleaseNotesBtn.addEventListener('click', viewReleaseNotes);
+  }
+  if (dismissUpdateBtn) {
+    dismissUpdateBtn.addEventListener('click', dismissUpdate);
+  }
 
   // Load settings on popup open
   await loadSettings();
