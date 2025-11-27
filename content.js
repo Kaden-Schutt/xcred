@@ -712,6 +712,9 @@
         // Calculate credibility tier (government accounts get special 'government' tier)
         profileData.tier = this.calculateTier(profileData);
 
+        // Tag data source
+        profileData._cacheSource = 'api';
+
         return profileData;
 
       } catch (e) {

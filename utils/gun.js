@@ -9,6 +9,14 @@ const XLocationGun = {
   peerCount: 0,
   initialized: false,
 
+  // ========== SECURITY: Rate limiting ==========
+  lastWriteTime: 0,
+  WRITE_COOLDOWN: 3000,  // 3 seconds between writes to prevent rapid injection
+
+  // ========== SECURITY: Relay health tracking ==========
+  relayConnected: false,
+  lastRelayCheck: 0,
+
   // ========== INITIALIZATION ==========
 
   /**
@@ -32,8 +40,7 @@ const XLocationGun = {
 
       this.gun = Gun({
         peers: [
-          'wss://fltltydwaaveotuzlnxb.supabase.co/functions/v1/gun-relay',  // Primary: Supabase Edge Function
-          'wss://gun-manhattan.herokuapp.com/gun',  // Fallback: public relay
+          'wss://srv654779.hstgr.cloud/gun',
         ],
         localStorage: false,  // Use IndexedDB via our own cache
         radisk: false
@@ -61,6 +68,43 @@ const XLocationGun = {
   // ========== PROFILE OPERATIONS ==========
 
   /**
+   * SECURITY: Validate timestamp is not in the future or too old
+   * @param {number} timestamp - Timestamp to validate
+   * @returns {boolean} Whether timestamp is valid
+   */
+  isValidTimestamp(timestamp) {
+    if (!timestamp) return false;
+    const now = Date.now();
+    const oneDay = 24 * 60 * 60 * 1000;
+    const oneMinuteFuture = 60 * 1000;  // Allow 1 minute clock skew
+    return timestamp > (now - oneDay) && timestamp < (now + oneMinuteFuture);
+  },
+
+  /**
+   * SECURITY: Cross-validate Gun.js data against Supabase
+   * @param {string} username - Twitter username
+   * @param {Object} gunData - Data from Gun.js
+   * @returns {Promise<boolean>} Whether data passes validation
+   */
+  async validateAgainstSupabase(username, gunData) {
+    if (typeof XLocationRemote === 'undefined') return true;  // Skip if no Supabase
+
+    try {
+      const supabaseData = await XLocationRemote.get(username);
+      if (!supabaseData) return true;  // No Supabase data to compare against
+
+      // Critical fields must match if Supabase has data
+      if (supabaseData.createdAt && gunData.createdAt !== supabaseData.createdAt) {
+        console.warn(`[XCred Gun] SECURITY: createdAt mismatch for ${username} - possible attack`);
+        return false;
+      }
+      return true;
+    } catch (e) {
+      return true;  // Fail open if Supabase unavailable
+    }
+  },
+
+  /**
    * Get profile from Gun.js P2P network
    * @param {string} username - Twitter username
    * @returns {Promise<Object|null>} Profile data or null
@@ -74,9 +118,24 @@ const XLocationGun = {
         resolve(null);
       }, 2000);
 
-      this.profiles.get(username.toLowerCase()).once((data, key) => {
+      this.profiles.get(username.toLowerCase()).once(async (data, key) => {
         clearTimeout(timeout);
         if (data && data.createdAt) {
+          // SECURITY: Validate timestamp
+          if (data._updatedAt && !this.isValidTimestamp(data._updatedAt)) {
+            console.warn(`[XCred Gun] SECURITY: Invalid timestamp for ${username}, rejecting`);
+            resolve(null);
+            return;
+          }
+
+          // SECURITY: Cross-validate with Supabase
+          const isValid = await this.validateAgainstSupabase(username, data);
+          if (!isValid) {
+            console.warn(`[XCred Gun] SECURITY: Supabase validation failed for ${username}`);
+            resolve(null);
+            return;
+          }
+
           resolve({
             ...data,
             _cacheSource: 'gun',
@@ -98,11 +157,18 @@ const XLocationGun = {
   async set(username, data) {
     if (!this.profiles) return false;
 
+    // SECURITY: Rate limiting - prevent rapid injection attacks
+    const now = Date.now();
+    if (now - this.lastWriteTime < this.WRITE_COOLDOWN) {
+      console.log('[XCred Gun] Write cooldown active, skipping');
+      return false;
+    }
+
     try {
       const gunData = {
         ...data,
         username: username.toLowerCase(),
-        _updatedAt: Date.now(),
+        _updatedAt: now,
         _nodeId: this.getNodeId()
       };
 
@@ -112,6 +178,7 @@ const XLocationGun = {
       delete gunData._peerConsensus;
 
       this.profiles.get(username.toLowerCase()).put(gunData);
+      this.lastWriteTime = now;  // Update last write time
       console.log(`[XCred Gun] Set ${username} to P2P network`);
       return true;
     } catch (e) {
@@ -125,14 +192,46 @@ const XLocationGun = {
   /**
    * Check if multiple peers agree on profile data
    * @param {string} username - Twitter username
-   * @param {number} threshold - Minimum peer count for consensus
+   * @param {number} threshold - Minimum peer count for consensus (SECURITY: increased to 3)
    * @returns {Promise<boolean>} Whether consensus is reached
    */
-  async checkConsensus(username, threshold = 2) {
-    // Gun.js HAM algorithm naturally converges
-    // We track _peerConsensus count from acknowledgments
+  async checkConsensus(username, threshold = 3) {
+    // SECURITY: Require minimum 3 peers to establish consensus
+    // This makes it harder for a single attacker to manipulate data
     const data = await this.get(username);
     return data && (data._peerConsensus >= threshold);
+  },
+
+  /**
+   * SECURITY: Check relay server connectivity
+   * @returns {Promise<boolean>} Whether at least one relay is reachable
+   */
+  async checkRelayHealth() {
+    if (!this.gun) return false;
+
+    // Check if we've recently verified connectivity
+    const now = Date.now();
+    if (now - this.lastRelayCheck < 30000 && this.relayConnected) {
+      return true;  // Use cached status for 30 seconds
+    }
+
+    this.lastRelayCheck = now;
+
+    // Test connectivity by trying to read from Gun
+    return new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        this.relayConnected = false;
+        console.warn('[XCred Gun] SECURITY: No relay connectivity');
+        resolve(false);
+      }, 3000);
+
+      // Try to read anything from the network
+      this.gun.get('xcred/health').once((data) => {
+        clearTimeout(timeout);
+        this.relayConnected = true;
+        resolve(true);
+      });
+    });
   },
 
   /**
@@ -361,16 +460,15 @@ const XLocationGun = {
    * @returns {Promise<Object>} Settings object
    */
   async getSettings() {
+    const defaults = { gunSync: true, peerValidation: true };
     return new Promise((resolve) => {
       if (typeof chrome !== 'undefined' && chrome.storage) {
         chrome.storage.sync.get(['xlocation_settings'], (result) => {
-          resolve(result.xlocation_settings || {
-            gunSync: true,
-            peerValidation: true
-          });
+          // Merge with defaults so gunSync defaults to true if not set
+          resolve({ ...defaults, ...result.xlocation_settings });
         });
       } else {
-        resolve({ gunSync: true, peerValidation: true });
+        resolve(defaults);
       }
     });
   },
@@ -409,8 +507,15 @@ const XLocationGun = {
     return {
       initialized: this.initialized,
       connected: this.isReady(),
+      relayConnected: this.relayConnected,
       nodeId: this.getNodeId(),
-      budget: this.getBudgetInfo()
+      budget: this.getBudgetInfo(),
+      securityFeatures: {
+        timestampValidation: true,
+        supabaseCrossValidation: true,
+        writeRateLimiting: true,
+        consensusThreshold: 3
+      }
     };
   }
 };

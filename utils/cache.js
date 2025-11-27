@@ -236,67 +236,42 @@ const XLocationCache = {
   },
 
   /**
-   * Fetch from hybrid remote layer (Gun.js + Supabase in parallel)
+   * Fetch from remote layer (Gun.js first, Supabase fallback)
    * @param {string} key - Lowercase username
    * @returns {Promise<Object|null>} Best available data
    */
   async getFromRemoteHybrid(key) {
-    const promises = [];
+    const GUN_TIMEOUT = 300; // ms
 
-    // Gun.js P2P lookup
+    // Try Gun.js first with short timeout
     if (typeof XLocationGun !== 'undefined' && XLocationGun.isReady()) {
-      promises.push(
-        XLocationGun.get(key).catch(() => null)
-      );
-    } else {
-      promises.push(Promise.resolve(null));
+      try {
+        const gunData = await Promise.race([
+          XLocationGun.get(key).catch(() => null),
+          new Promise(resolve => setTimeout(() => resolve(null), GUN_TIMEOUT))
+        ]);
+
+        if (gunData && this.isValidCacheEntry(gunData)) {
+          return { ...gunData, _cacheSource: 'gun' };
+        }
+      } catch (e) {
+        // Gun failed, fall through to Supabase
+      }
     }
 
-    // Supabase lookup
+    // Fallback to Supabase
     if (typeof XLocationRemote !== 'undefined' && XLocationRemote.isEnabled) {
-      promises.push(
-        XLocationRemote.get(key).catch(() => null)
-      );
-    } else {
-      promises.push(Promise.resolve(null));
+      try {
+        const supaData = await XLocationRemote.get(key).catch(() => null);
+        if (supaData) {
+          return { ...supaData, _cacheSource: 'remote' };
+        }
+      } catch (e) {
+        // Supabase failed
+      }
     }
 
-    const [gunResult, supabaseResult] = await Promise.allSettled(promises);
-
-    const gunData = gunResult.status === 'fulfilled' ? gunResult.value : null;
-    const supaData = supabaseResult.status === 'fulfilled' ? supabaseResult.value : null;
-
-    return this.resolveHybridData(gunData, supaData);
-  },
-
-  /**
-   * Resolve conflict between Gun.js and Supabase data
-   * @param {Object|null} gunData - Data from Gun.js P2P
-   * @param {Object|null} supaData - Data from Supabase
-   * @returns {Object|null} Resolved data
-   */
-  resolveHybridData(gunData, supaData) {
-    // Neither has data
-    if (!gunData && !supaData) return null;
-
-    // Only one has data
-    if (!gunData) return { ...supaData, _cacheSource: 'remote' };
-    if (!supaData) return { ...gunData, _cacheSource: 'gun' };
-
-    // Both have data - Gun.js consensus wins if threshold met
-    if (gunData._peerConsensus >= 2) {
-      return { ...gunData, _cacheSource: 'gun' };
-    }
-
-    // Otherwise, prefer most recent timestamp
-    const gunTime = gunData.timestamp || gunData._updatedAt || 0;
-    const supaTime = supaData.timestamp || 0;
-
-    if (gunTime > supaTime) {
-      return { ...gunData, _cacheSource: 'gun' };
-    }
-
-    return { ...supaData, _cacheSource: 'remote' };
+    return null;
   },
 
   /**

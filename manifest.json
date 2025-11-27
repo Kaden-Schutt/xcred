@@ -14,7 +14,7 @@
     "https://*.supabase.co/*",
     "https://api.github.com/*",
     "wss://*.supabase.co/*",
-    "wss://gun-manhattan.herokuapp.com/*"
+    "wss://srv654779.hstgr.cloud/*"
   ],
   "content_scripts": [
     {
