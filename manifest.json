@@ -11,7 +11,8 @@
   "host_permissions": [
     "https://x.com/*",
     "https://twitter.com/*",
-    "https://*.supabase.co/*"
+    "https://*.supabase.co/*",
+    "https://api.github.com/*"
   ],
   "content_scripts": [
     {

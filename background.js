@@ -3,12 +3,16 @@
  * Handles API requests and message passing
  */
 
+// Import updater utility
+importScripts('utils/updater.js');
+
 // Default settings
 const DEFAULT_SETTINGS = {
   enabled: true,
   showFlags: true,
   showBorders: true,
-  debugMode: false
+  debugMode: false,
+  autoUpdate: true // Enable auto-update checks by default
 };
 
 // Initialize settings on install
@@ -19,6 +23,19 @@ chrome.runtime.onInstalled.addListener(async (details) => {
     // Set default settings
     await chrome.storage.sync.set({ xlocation_settings: DEFAULT_SETTINGS });
     console.log('[XCred] Default settings initialized');
+
+    // Check for updates on first install
+    const settings = DEFAULT_SETTINGS;
+    if (settings.autoUpdate) {
+      performUpdateCheck(true).catch(err => {
+        console.error('[XCred] Initial update check failed:', err);
+      });
+    }
+  } else if (details.reason === 'update') {
+    // Extension was updated - clear update notification
+    console.log('[XCred] Extension updated from', details.previousVersion, 'to', CURRENT_VERSION);
+    clearUpdateInfo();
+    chrome.action.setBadgeText({ text: '' });
   }
 });
 
@@ -58,6 +75,40 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       });
       return true;
 
+    case 'CHECK_FOR_UPDATES':
+      // Manual update check triggered from popup
+      performUpdateCheck(true)
+        .then(updateInfo => {
+          sendResponse({ success: true, updateInfo });
+        })
+        .catch(error => {
+          console.error('[XCred] Update check failed:', error);
+          sendResponse({ success: false, error: error.message });
+        });
+      return true;
+
+    case 'GET_UPDATE_INFO':
+      // Get stored update information
+      getStoredUpdateInfo()
+        .then(result => {
+          sendResponse({ success: true, ...result });
+        })
+        .catch(error => {
+          sendResponse({ success: false, error: error.message });
+        });
+      return true;
+
+    case 'DISMISS_UPDATE':
+      // Dismiss update notification
+      dismissUpdate()
+        .then(() => {
+          sendResponse({ success: true });
+        })
+        .catch(error => {
+          sendResponse({ success: false, error: error.message });
+        });
+      return true;
+
     default:
       console.warn('[XCred] Unknown message type:', message.type);
       sendResponse({ error: 'Unknown message type' });
@@ -75,7 +126,12 @@ chrome.alarms.create('cleanupCache', {
   periodInMinutes: 60 // Run every hour
 });
 
-chrome.alarms.onAlarm.addListener((alarm) => {
+// Check for updates periodically (every 6 hours)
+chrome.alarms.create('checkForUpdates', {
+  periodInMinutes: 360 // Run every 6 hours
+});
+
+chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === 'cleanupCache') {
     console.log('[XCred] Running cache cleanup');
     // Send cleanup message to active X tabs
@@ -86,6 +142,17 @@ chrome.alarms.onAlarm.addListener((alarm) => {
         });
       });
     });
+  } else if (alarm.name === 'checkForUpdates') {
+    console.log('[XCred] Running periodic update check');
+    // Check if auto-update is enabled
+    const result = await chrome.storage.sync.get(['xlocation_settings']);
+    const settings = result.xlocation_settings || DEFAULT_SETTINGS;
+
+    if (settings.autoUpdate) {
+      performUpdateCheck(false).catch(err => {
+        console.error('[XCred] Periodic update check failed:', err);
+      });
+    }
   }
 });
 

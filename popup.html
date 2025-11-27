@@ -442,6 +442,107 @@
       font-size: 11px;
       opacity: 0.7;
     }
+
+    /* Update notification banner */
+    .update-banner {
+      padding: 12px 16px;
+      background: linear-gradient(135deg, #1DA1F2 0%, #0d8bd9 100%);
+      color: white;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .update-banner.show {
+      display: flex;
+    }
+
+    .update-banner-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-weight: 700;
+      font-size: 14px;
+    }
+
+    .update-banner-version {
+      font-size: 12px;
+      opacity: 0.95;
+    }
+
+    .update-banner-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .update-btn {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.5);
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      background: rgba(255, 255, 255, 0.2);
+      color: white;
+      transition: all 0.2s ease;
+    }
+
+    .update-btn:hover {
+      background: rgba(255, 255, 255, 0.3);
+      border-color: rgba(255, 255, 255, 0.7);
+    }
+
+    .update-btn-primary {
+      background: white;
+      color: #1DA1F2;
+      border-color: white;
+    }
+
+    .update-btn-primary:hover {
+      background: #f7f9f9;
+    }
+
+    .dismiss-update {
+      cursor: pointer;
+      opacity: 0.8;
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .dismiss-update:hover {
+      opacity: 1;
+    }
+
+    .version-info {
+      font-size: 11px;
+      text-align: center;
+      padding: 8px 16px;
+      color: #536471;
+      background: rgb(247, 249, 249);
+      border-bottom: 1px solid rgb(239, 243, 244);
+    }
+
+    body.dark .version-info {
+      background: rgb(22, 24, 28);
+      color: #71767b;
+      border-bottom-color: rgb(47, 51, 54);
+    }
+
+    .check-update-btn {
+      color: #1d9bf0;
+      cursor: pointer;
+      text-decoration: none;
+      margin-left: 4px;
+    }
+
+    .check-update-btn:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -451,6 +552,25 @@
       <h1>XCred</h1>
       <p>Convenient transparency for your X timeline</p>
     </div>
+  </div>
+
+  <!-- Update notification banner -->
+  <div class="update-banner" id="updateBanner">
+    <div class="update-banner-header">
+      <span>🎉 Update Available</span>
+      <span class="dismiss-update" id="dismissUpdate" title="Dismiss">✕</span>
+    </div>
+    <div class="update-banner-version" id="updateVersion"></div>
+    <div class="update-banner-actions">
+      <button class="update-btn update-btn-primary" id="downloadUpdate">Download Update</button>
+      <button class="update-btn" id="viewReleaseNotes">Release Notes</button>
+    </div>
+  </div>
+
+  <!-- Version info -->
+  <div class="version-info">
+    Version <span id="currentVersion">1.1.1</span>
+    <span class="check-update-btn" id="manualCheck">Check for updates</span>
   </div>
 
   <div class="content">
@@ -483,6 +603,17 @@
       </div>
       <label class="toggle" onclick="event.stopPropagation()">
         <input type="checkbox" id="showBorders" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="setting-row" onclick="document.getElementById('autoUpdate').click()">
+      <div class="setting-label">
+        <span>Auto-Update</span>
+        <small>Automatically check for new versions</small>
+      </div>
+      <label class="toggle" onclick="event.stopPropagation()">
+        <input type="checkbox" id="autoUpdate" checked>
         <span class="toggle-slider"></span>
       </label>
     </div>
