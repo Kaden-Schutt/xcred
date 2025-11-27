@@ -33,6 +33,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   const remoteWarningEl = document.getElementById('remoteWarning');
   const statusEl = document.getElementById('status');
 
+  // Settings panel elements
+  const settingsPanel = document.getElementById('settingsPanel');
+  const openSettingsBtn = document.getElementById('openSettings');
+  const closeSettingsBtn = document.getElementById('closeSettings');
+
+  // Extension status elements (main view)
+  const extensionStatusIcon = document.getElementById('extensionStatusIcon');
+  const extensionStatusText = document.getElementById('extensionStatusText');
+
   // Update-related elements
   const updateBanner = document.getElementById('updateBanner');
   const updateVersion = document.getElementById('updateVersion');
@@ -44,6 +53,33 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Store current update info
   let currentUpdateInfo = null;
+
+  // Open settings panel
+  const openSettings = () => {
+    if (settingsPanel) {
+      settingsPanel.classList.add('open');
+    }
+  };
+
+  // Close settings panel
+  const closeSettings = () => {
+    if (settingsPanel) {
+      settingsPanel.classList.remove('open');
+    }
+  };
+
+  // Update extension status indicator in main view
+  const updateExtensionStatus = (isEnabled) => {
+    if (extensionStatusIcon && extensionStatusText) {
+      if (isEnabled) {
+        extensionStatusIcon.classList.remove('disabled');
+        extensionStatusText.textContent = 'Extension enabled';
+      } else {
+        extensionStatusIcon.classList.add('disabled');
+        extensionStatusText.textContent = 'Extension disabled';
+      }
+    }
+  };
 
   // Load current settings
   const loadSettings = async () => {
@@ -62,6 +98,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       showBordersToggle.checked = settings.showBorders;
       autoUpdateToggle.checked = settings.autoUpdate !== false; // Default true
       remoteSyncToggle.checked = settings.remoteSync !== false; // Default true
+
+      // Update extension status indicator
+      updateExtensionStatus(settings.enabled);
 
       // Update warning visibility
       updateRemoteWarning(remoteSyncToggle.checked);
@@ -89,6 +128,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       await chrome.storage.sync.set({ xlocation_settings: settings });
       showStatus('Settings saved');
+
+      // Update extension status indicator
+      updateExtensionStatus(settings.enabled);
     } catch (e) {
       console.error('Failed to save settings:', e);
       showStatus('Failed to save settings', true);
@@ -260,7 +302,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       console.error('[XCred Popup] Manual update check failed:', e);
       showStatus('Failed to check for updates', true);
     } finally {
-      manualCheckBtn.textContent = 'Check for updates';
+      manualCheckBtn.textContent = 'Check for Updates';
       manualCheckBtn.style.pointerEvents = 'auto';
     }
   };
@@ -290,7 +332,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   };
 
-  // Event listeners
+  // Settings panel event listeners
+  if (openSettingsBtn) {
+    openSettingsBtn.addEventListener('click', openSettings);
+  }
+  if (closeSettingsBtn) {
+    closeSettingsBtn.addEventListener('click', closeSettings);
+  }
+
+  // Settings toggle event listeners
   enabledToggle.addEventListener('change', saveSettings);
   showFlagsToggle.addEventListener('change', saveSettings);
   showBordersToggle.addEventListener('change', saveSettings);

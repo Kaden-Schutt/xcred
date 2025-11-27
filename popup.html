@@ -17,11 +17,18 @@
       font-size: 15px;
       color: #0f1419;
       background: #ffffff;
+      position: relative;
+      overflow: hidden;
     }
 
     body.dark {
       background: #000000;
       color: #e7e9ea;
+    }
+
+    .popup-container {
+      position: relative;
+      overflow: hidden;
     }
 
     .header {
@@ -42,6 +49,10 @@
       flex-shrink: 0;
     }
 
+    .header-text {
+      flex: 1;
+    }
+
     .header-text h1 {
       font-size: 20px;
       font-weight: 800;
@@ -56,6 +67,111 @@
 
     body.dark .header-text p {
       color: #71767b;
+    }
+
+    /* Gear icon button */
+    .gear-btn {
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      flex-shrink: 0;
+    }
+
+    .gear-btn:hover {
+      background: rgba(15, 20, 25, 0.1);
+    }
+
+    body.dark .gear-btn:hover {
+      background: rgba(239, 243, 244, 0.1);
+    }
+
+    .gear-btn svg {
+      fill: #536471;
+    }
+
+    body.dark .gear-btn svg {
+      fill: #71767b;
+    }
+
+    /* Settings Panel - Slide in from right */
+    .settings-panel {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+      transform: translateX(100%);
+      transition: transform 0.3s cubic-bezier(0.17, 0.67, 0.12, 1);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+    }
+
+    body.dark .settings-panel {
+      background: #000000;
+    }
+
+    .settings-panel.open {
+      transform: translateX(0);
+    }
+
+    .settings-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid rgb(239, 243, 244);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-height: 53px;
+    }
+
+    body.dark .settings-header {
+      border-bottom-color: rgb(47, 51, 54);
+    }
+
+    .back-btn {
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: background 0.2s ease;
+      flex-shrink: 0;
+      margin-left: -8px;
+    }
+
+    .back-btn:hover {
+      background: rgba(15, 20, 25, 0.1);
+    }
+
+    body.dark .back-btn:hover {
+      background: rgba(239, 243, 244, 0.1);
+    }
+
+    .back-btn svg {
+      fill: #0f1419;
+    }
+
+    body.dark .back-btn svg {
+      fill: #e7e9ea;
+    }
+
+    .settings-title {
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.2px;
+    }
+
+    .settings-content {
+      flex: 1;
+      overflow-y: auto;
     }
 
     .content {
@@ -241,17 +357,6 @@
 
     body.dark .legend-color.tier6 {
       border-color: #71767b;
-    }
-
-    /* Legend divider */
-    .legend-divider {
-      height: 1px;
-      background: rgb(239, 243, 244);
-      margin: 8px 16px;
-    }
-
-    body.dark .legend-divider {
-      background: rgb(47, 51, 54);
     }
 
     /* Legacy colors for backwards compatibility */
@@ -543,152 +648,212 @@
     .check-update-btn:hover {
       text-decoration: underline;
     }
+
+    /* Extension status indicator in main view */
+    .extension-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: #536471;
+      border-bottom: 1px solid rgb(239, 243, 244);
+    }
+
+    body.dark .extension-status {
+      color: #71767b;
+      border-bottom-color: rgb(47, 51, 54);
+    }
+
+    .extension-status-icon {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #17BF63;
+    }
+
+    .extension-status-icon.disabled {
+      background: #9CA3AF;
+    }
   </style>
 </head>
 <body>
-  <div class="header">
-    <img src="icons/icon48.png" alt="XCred" class="header-logo">
-    <div class="header-text">
-      <h1>XCred</h1>
-      <p>Convenient transparency for your X timeline</p>
-    </div>
-  </div>
-
-  <!-- Update notification banner -->
-  <div class="update-banner" id="updateBanner">
-    <div class="update-banner-header">
-      <span>🎉 Update Available</span>
-      <span class="dismiss-update" id="dismissUpdate" title="Dismiss">✕</span>
-    </div>
-    <div class="update-banner-version" id="updateVersion"></div>
-    <div class="update-banner-actions">
-      <button class="update-btn update-btn-primary" id="downloadUpdate">Download Update</button>
-      <button class="update-btn" id="viewReleaseNotes">Release Notes</button>
-    </div>
-  </div>
-
-  <!-- Version info -->
-  <div class="version-info">
-    Version <span id="currentVersion">1.1.1</span>
-    <span class="check-update-btn" id="manualCheck">Check for updates</span>
-  </div>
-
-  <div class="content">
-    <div class="setting-row" onclick="document.getElementById('enabled').click()">
-      <div class="setting-label">
-        <span>Enable Extension</span>
-        <small>Show location indicators on posts</small>
-      </div>
-      <label class="toggle" onclick="event.stopPropagation()">
-        <input type="checkbox" id="enabled" checked>
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
-
-    <div class="setting-row" onclick="document.getElementById('showFlags').click()">
-      <div class="setting-label">
-        <span>Show Flags</span>
-        <small>Display country flag icons</small>
-      </div>
-      <label class="toggle" onclick="event.stopPropagation()">
-        <input type="checkbox" id="showFlags" checked>
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
-
-    <div class="setting-row" onclick="document.getElementById('showBorders').click()">
-      <div class="setting-label">
-        <span>Show Borders</span>
-        <small>Color-coded credibility borders</small>
-      </div>
-      <label class="toggle" onclick="event.stopPropagation()">
-        <input type="checkbox" id="showBorders" checked>
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
-
-    <div class="setting-row" onclick="document.getElementById('autoUpdate').click()">
-      <div class="setting-label">
-        <span>Auto-Update</span>
-        <small>Automatically check for new versions</small>
-      </div>
-      <label class="toggle" onclick="event.stopPropagation()">
-        <input type="checkbox" id="autoUpdate" checked>
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
-
-    <div class="section-header">Remote Sync</div>
-
-    <div class="setting-row" onclick="document.getElementById('remoteSync').click()">
-      <div class="setting-label">
-        <span>Remote Cache Sync</span>
-        <small>Share cache with other users to reduce rate limits</small>
-      </div>
-      <label class="toggle" onclick="event.stopPropagation()">
-        <input type="checkbox" id="remoteSync" checked>
-        <span class="toggle-slider"></span>
-      </label>
-    </div>
-
-    <div class="remote-status" id="remoteStatus">
-      <div class="remote-status-icon"></div>
-      <span class="remote-status-text">Checking connection...</span>
-    </div>
-
-    <div class="remote-warning" id="remoteWarning" style="display: none;">
-      <span>Disabling remote sync may cause rate limit issues with X's API.</span>
-    </div>
-
-    <div class="section-header">Credibility Levels</div>
-
-    <div class="legend">
-      <!-- Government Verified -->
-      <div class="legend-item">
-        <div class="legend-color government"></div>
-        <span class="legend-text">Government Verified</span>
+  <div class="popup-container">
+    <!-- Main View -->
+    <div class="main-view">
+      <div class="header">
+        <img src="icons/icon48.png" alt="XCred" class="header-logo">
+        <div class="header-text">
+          <h1>XCred</h1>
+          <p>Convenient transparency for your X timeline</p>
+        </div>
+        <div class="gear-btn" id="openSettings" title="Settings">
+          <svg viewBox="0 0 24 24" width="20" height="20">
+            <path d="M10.54 1.75h2.92l.57 2.28c.56.17 1.1.4 1.6.7l2.1-1.15 2.07 2.07-1.15 2.1c.3.5.53 1.04.7 1.6l2.28.57v2.92l-2.28.57c-.17.56-.4 1.1-.7 1.6l1.15 2.1-2.07 2.07-2.1-1.15c-.5.3-1.04.53-1.6.7l-.57 2.28h-2.92l-.57-2.28c-.56-.17-1.1-.4-1.6-.7l-2.1 1.15-2.07-2.07 1.15-2.1c-.3-.5-.53-1.04-.7-1.6L1.75 13.46v-2.92l2.28-.57c.17-.56.4-1.1.7-1.6L3.58 6.27l2.07-2.07 2.1 1.15c.5-.3 1.04-.53 1.6-.7l.57-2.28zM12 8.5c-1.93 0-3.5 1.57-3.5 3.5s1.57 3.5 3.5 3.5 3.5-1.57 3.5-3.5-1.57-3.5-3.5-3.5z"/>
+          </svg>
+        </div>
       </div>
 
-      <!-- Tier 1 - Highest -->
-      <div class="legend-item">
-        <div class="legend-color tier1"></div>
-        <span class="legend-text">Strong authenticity signals</span>
+      <!-- Update notification banner -->
+      <div class="update-banner" id="updateBanner">
+        <div class="update-banner-header">
+          <span>🎉 Update Available</span>
+          <span class="dismiss-update" id="dismissUpdate" title="Dismiss">✕</span>
+        </div>
+        <div class="update-banner-version" id="updateVersion"></div>
+        <div class="update-banner-actions">
+          <button class="update-btn update-btn-primary" id="downloadUpdate">Download Update</button>
+          <button class="update-btn" id="viewReleaseNotes">Release Notes</button>
+        </div>
       </div>
-      <!-- Tier 2 - High -->
-      <div class="legend-item">
-        <div class="legend-color tier2"></div>
-        <span class="legend-text">Good authenticity signals</span>
+
+      <!-- Extension status -->
+      <div class="extension-status" id="extensionStatus">
+        <div class="extension-status-icon" id="extensionStatusIcon"></div>
+        <span id="extensionStatusText">Extension enabled</span>
       </div>
-      <!-- Tier 3 - Medium -->
-      <div class="legend-item">
-        <div class="legend-color tier3"></div>
-        <span class="legend-text">Some inconsistencies</span>
+
+      <!-- Remote sync status -->
+      <div class="remote-status" id="remoteStatus">
+        <div class="remote-status-icon"></div>
+        <span class="remote-status-text">Checking connection...</span>
       </div>
-      <!-- Tier 4 - Low -->
-      <div class="legend-item">
-        <div class="legend-color tier4"></div>
-        <span class="legend-text">Multiple concerns</span>
+
+      <div class="content">
+        <div class="section-header">Credibility Levels</div>
+
+        <div class="legend">
+          <!-- Government Verified -->
+          <div class="legend-item">
+            <div class="legend-color government"></div>
+            <span class="legend-text">Government Verified</span>
+          </div>
+
+          <!-- Tier 1 - Highest -->
+          <div class="legend-item">
+            <div class="legend-color tier1"></div>
+            <span class="legend-text">Strong authenticity signals</span>
+          </div>
+          <!-- Tier 2 - High -->
+          <div class="legend-item">
+            <div class="legend-color tier2"></div>
+            <span class="legend-text">Good authenticity signals</span>
+          </div>
+          <!-- Tier 3 - Medium -->
+          <div class="legend-item">
+            <div class="legend-color tier3"></div>
+            <span class="legend-text">Some inconsistencies</span>
+          </div>
+          <!-- Tier 4 - Low -->
+          <div class="legend-item">
+            <div class="legend-color tier4"></div>
+            <span class="legend-text">Multiple concerns</span>
+          </div>
+          <!-- Tier 5 - Suspicious -->
+          <div class="legend-item">
+            <div class="legend-color tier5"></div>
+            <span class="legend-text">Significant red flags</span>
+          </div>
+          <!-- Tier 6 - Unknown -->
+          <div class="legend-item">
+            <div class="legend-color tier6"></div>
+            <span class="legend-text">Insufficient data</span>
+          </div>
+        </div>
       </div>
-      <!-- Tier 5 - Suspicious -->
-      <div class="legend-item">
-        <div class="legend-color tier5"></div>
-        <span class="legend-text">Significant red flags</span>
-      </div>
-      <!-- Tier 6 - Unknown -->
-      <div class="legend-item">
-        <div class="legend-color tier6"></div>
-        <span class="legend-text">Insufficient data</span>
+
+      <div class="status" id="status"></div>
+
+      <div class="footer">
+        Data from X's public account transparency info.<br>
+        For transparency, not harassment.<br><br>
+        <a href="https://buymeacoffee.com/kadenschutt" target="_blank" class="support-link">Buy Me a Coffee</a><br>
+        <span class="copyright">&copy; 2025 Will Power Media LLC. All rights reserved.</span>
       </div>
     </div>
-  </div>
 
-  <div class="status" id="status"></div>
+    <!-- Settings Panel (slides in from right) -->
+    <div class="settings-panel" id="settingsPanel">
+      <div class="settings-header">
+        <div class="back-btn" id="closeSettings" title="Back">
+          <svg viewBox="0 0 24 24" width="20" height="20">
+            <path d="M7.414 13l5.043 5.04-1.414 1.42L3.586 12l7.457-7.46 1.414 1.42L7.414 11H21v2H7.414z"/>
+          </svg>
+        </div>
+        <span class="settings-title">Settings</span>
+      </div>
 
-  <div class="footer">
-    Data from X's public account transparency info.<br>
-    For transparency, not harassment.<br><br>
-    <a href="https://buymeacoffee.com/kadenschutt" target="_blank" class="support-link">Buy Me a Coffee</a><br>
-    <span class="copyright">&copy; 2025 Will Power Media LLC. All rights reserved.</span>
+      <div class="settings-content">
+        <div class="setting-row" onclick="document.getElementById('enabled').click()">
+          <div class="setting-label">
+            <span>Enable Extension</span>
+            <small>Show location indicators on posts</small>
+          </div>
+          <label class="toggle" onclick="event.stopPropagation()">
+            <input type="checkbox" id="enabled" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-row" onclick="document.getElementById('showFlags').click()">
+          <div class="setting-label">
+            <span>Show Flags</span>
+            <small>Display country flag icons</small>
+          </div>
+          <label class="toggle" onclick="event.stopPropagation()">
+            <input type="checkbox" id="showFlags" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-row" onclick="document.getElementById('showBorders').click()">
+          <div class="setting-label">
+            <span>Show Borders</span>
+            <small>Color-coded credibility borders</small>
+          </div>
+          <label class="toggle" onclick="event.stopPropagation()">
+            <input type="checkbox" id="showBorders" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="setting-row" onclick="document.getElementById('autoUpdate').click()">
+          <div class="setting-label">
+            <span>Auto-Update</span>
+            <small>Automatically check for new versions</small>
+          </div>
+          <label class="toggle" onclick="event.stopPropagation()">
+            <input type="checkbox" id="autoUpdate" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="section-header">Remote Sync</div>
+
+        <div class="setting-row" onclick="document.getElementById('remoteSync').click()">
+          <div class="setting-label">
+            <span>Remote Cache Sync</span>
+            <small>Share cache with other users to reduce rate limits</small>
+          </div>
+          <label class="toggle" onclick="event.stopPropagation()">
+            <input type="checkbox" id="remoteSync" checked>
+            <span class="toggle-slider"></span>
+          </label>
+        </div>
+
+        <div class="remote-warning" id="remoteWarning" style="display: none;">
+          <span>Disabling remote sync may cause rate limit issues with X's API.</span>
+        </div>
+
+        <div class="section-header">Updates</div>
+
+        <!-- Version info -->
+        <div class="version-info">
+          Version <span id="currentVersion">1.1.2</span>
+          <span class="check-update-btn" id="manualCheck">Check for Updates</span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="popup.js"></script>
