@@ -5,7 +5,7 @@
 
 const GITHUB_API_URL = 'https://api.github.com/repos/Kaden-Schutt/xcred/releases/latest';
 const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
-const CURRENT_VERSION = '1.1.1'; // Will be synced with manifest.json
+const CURRENT_VERSION = '1.2.2'; // Will be synced with manifest.json
 
 /**
  * Compare two semantic version strings
