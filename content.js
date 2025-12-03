@@ -481,7 +481,34 @@
             // Ignore cache errors during rate limit fallback
           }
 
-          // No cached data - re-queue for later
+          // No cached data - try API server fallback
+          try {
+            if (typeof XCredAPI !== 'undefined') {
+              console.log(`[XCred] Rate limited - trying API fallback for @${username}`);
+              const apiResult = await XCredAPI.requestValidation(username);
+              if (apiResult && apiResult.status === 'validated' && apiResult.profileData) {
+                // Server validated successfully - use the data
+                const serverData = {
+                  ...apiResult.profileData,
+                  _cacheSource: 'api_fallback',
+                  _serverSignature: apiResult.serverSignature
+                };
+                await XLocationCache.set(username, serverData);
+                pending.elements.forEach(element => {
+                  if (document.contains(element)) {
+                    this.injectIndicator(element, serverData);
+                  }
+                });
+                this.pendingRequests.delete(username);
+                console.log(`[XCred] API fallback success for @${username}`);
+                return;
+              }
+            }
+          } catch (e) {
+            console.warn('[XCred] API fallback failed:', e.message);
+          }
+
+          // API fallback failed too - re-queue for later
           this.requestQueue.push(username);
           return; // Keep pending request for retry
         }
