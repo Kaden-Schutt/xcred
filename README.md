@@ -1,20 +1,16 @@
 # XCred - Account Transparency for X/Twitter
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
+[![Version](https://img.shields.io/badge/version-1.2.4-blue.svg)](https://github.com/Kaden-Schutt/xcred/releases/latest)
 
 **See who you're really talking to.** XCred is a free, open-source Chrome extension that adds credibility indicators to your X/Twitter timeline.
 
-## Quick Install (3 Easy Steps)
+## Why Open Source?
 
-1. **Download** the [latest release](https://github.com/Kaden-Schutt/xcred/releases/latest) (.zip file)
-2. **Extract** the zip to a folder on your computer
-3. **Load in Chrome:**
-   - Go to `chrome://extensions/`
-   - Enable "Developer mode" (toggle in top right)
-   - Click "Load unpacked"
-   - Select the extracted folder
-
-That's it! Visit X/Twitter to see credibility indicators.
+- **Transparency** - You can verify exactly what the code does
+- **Trust** - No hidden tracking or data collection
+- **Community** - Contributions welcome to improve for everyone
+- **Security** - Public code review catches vulnerabilities
 
 ## Features
 
@@ -43,22 +39,30 @@ Identify verified government accounts with party affiliation.
 ### Username History
 See if accounts have changed their username frequently.
 
-## Why Open Source?
+## Installation
 
-- **Transparency** - You can verify exactly what the code does
-- **Trust** - No hidden tracking or data collection
-- **Community** - Contributions welcome to improve for everyone
-- **Security** - Public code review catches vulnerabilities
+### From Chrome Web Store
+Visit the [Chrome Web Store](https://chrome.google.com/webstore) and click "Add to Chrome".
 
-## Privacy & Security
+### From Source
+1. Clone this repository
+2. Open `chrome://extensions/`
+3. Enable "Developer mode" (top right)
+4. Click "Load unpacked"
+5. Select the cloned directory
 
-- Uses only **publicly available** X transparency data
-- **No personal data** collection
-- Processing happens **locally** in your browser
-- Optional shared cache to reduce API calls
-- [Full Privacy Policy](https://www.xcred.org/privacy.html)
+## Development
 
-## Development (For Contributors)
+```bash
+# Clone the repo
+git clone https://github.com/Kaden-Schutt/xcred.git
+cd xcred
+
+# Load in Chrome
+# 1. chrome://extensions/
+# 2. Enable Developer mode
+# 3. Load unpacked -> select this directory
+```
 
 ### Architecture
 
@@ -71,9 +75,11 @@ xcred/
 ├── styles.css          # Injected styles
 ├── icons/              # Extension icons
 └── utils/
+    ├── api-client.js   # XCredAPI - server validation client
     ├── cache.js        # Three-tier caching system
     ├── flags.js        # Country flag utilities
-    └── supabase.js     # Remote cache integration
+    ├── gun.js          # P2P consensus layer
+    └── supabase.js     # Remote cache (read-only)
 ```
 
 ### Testing Changes
@@ -81,6 +87,14 @@ xcred/
 - **Content script**: Refresh the X/Twitter tab
 - **Background script**: Click refresh on extension card
 - **Popup**: Close and reopen
+
+## Privacy & Security
+
+- Uses only **publicly available** X transparency data
+- **No personal data** collection
+- Processing happens **locally** in your browser
+- Server-validated shared cache to reduce API calls
+- [Full Privacy Policy](https://www.xcred.org/privacy.html)
 
 ## Contributing
 

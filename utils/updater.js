@@ -5,7 +5,11 @@
 
 const GITHUB_API_URL = 'https://api.github.com/repos/Kaden-Schutt/xcred/releases/latest';
 const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours in milliseconds
-const CURRENT_VERSION = '1.2.2'; // Will be synced with manifest.json
+
+// Get version from manifest.json - single source of truth
+function getCurrentVersion() {
+  return chrome.runtime.getManifest().version;
+}
 
 /**
  * Compare two semantic version strings
@@ -54,7 +58,8 @@ async function checkForUpdates() {
     }
 
     // Compare versions
-    const comparison = compareVersions(CURRENT_VERSION, latestVersion);
+    const currentVersion = getCurrentVersion();
+    const comparison = compareVersions(currentVersion, latestVersion);
 
     if (comparison === 1) {
       // New version available
@@ -64,7 +69,7 @@ async function checkForUpdates() {
 
       return {
         version: latestVersion,
-        currentVersion: CURRENT_VERSION,
+        currentVersion: currentVersion,
         downloadUrl: zipAsset ? zipAsset.browser_download_url : release.html_url,
         releaseUrl: release.html_url,
         releaseNotes: release.body || 'No release notes available',
@@ -73,7 +78,7 @@ async function checkForUpdates() {
       };
     }
 
-    console.log('[XCred Update] Already on latest version:', CURRENT_VERSION);
+    console.log('[XCred Update] Already on latest version:', currentVersion);
     return null;
 
   } catch (error) {
@@ -181,6 +186,6 @@ if (typeof module !== 'undefined' && module.exports) {
     getStoredUpdateInfo,
     dismissUpdate,
     clearUpdateInfo,
-    CURRENT_VERSION
+    getCurrentVersion
   };
 }

@@ -59,6 +59,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   const manualCheckBtn = document.getElementById('manualCheck');
   const currentVersionEl = document.getElementById('currentVersion');
 
+  // Set version from manifest.json (single source of truth)
+  if (currentVersionEl) {
+    currentVersionEl.textContent = chrome.runtime.getManifest().version;
+  }
+
   // Store current update info
   let currentUpdateInfo = null;
 

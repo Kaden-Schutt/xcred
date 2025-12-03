@@ -1,16 +1,14 @@
 /**
- * Supabase Remote Cache for XCred
- * Provides a shared profile cache across all users to reduce X API dependency
+ * Supabase Remote Cache for XCred (READ-ONLY)
+ * All writes now go through the API validation server
+ * This client only provides read access to validated profile data
  */
 
 const XLocationRemote = {
-  // Configuration - REPLACE THESE WITH YOUR SUPABASE PROJECT VALUES
-  // See SUPABASE_SETUP.md for instructions on finding these values
-  SUPABASE_URL: 'https://fltltydwaaveotuzlnxb.supabase.co', // e.g., 'https://abcdefghijkl.supabase.co'
-  SUPABASE_ANON_KEY: 'sb_publishable_ez4XpVROziphVz9uiKvjPg_Q-beTTxM', // Use either:
-  // - Publishable key (starts with 'sb_publishable_...') from API Keys tab, OR
-  // - Legacy anon key (starts with 'eyJ...') from Legacy API Keys tab
-  // Both are safe to expose in client code
+  // Configuration
+  SUPABASE_URL: 'https://fltltydwaaveotuzlnxb.supabase.co',
+  SUPABASE_ANON_KEY: 'sb_publishable_ez4XpVROziphVz9uiKvjPg_Q-beTTxM',
+  // NOTE: Anon key now only has SELECT permissions (writes go through API)
 
   // Cache settings
   REMOTE_CACHE_DURATION: 7 * 24 * 60 * 60 * 1000, // 7 days (same as local)
@@ -74,11 +72,7 @@ const XLocationRemote = {
       const settings = result.xlocation_settings || {};
       settings.remoteSync = enabled;
       await chrome.storage.sync.set({ xlocation_settings: settings });
-
-      // If re-enabled, trigger sync from local to remote
-      if (enabled) {
-        this.syncLocalToRemote();
-      }
+      // Note: Writes now go through API, no local-to-remote sync needed
     } catch (e) {
       // Settings save failed
     }
@@ -148,84 +142,23 @@ const XLocationRemote = {
   },
 
   /**
-   * INSERT new profile (no consensus required)
-   * @param {string} username - The username
-   * @param {Object} profileData - The profile data
-   * @returns {Promise<boolean>} Success status
+   * INSERT new profile - DEPRECATED
+   * Writes now go through API validation server
+   * @deprecated Use XCredAPI.requestValidation() instead
    */
   async insert(username, profileData) {
-    if (!this.isEnabled || !this.isConfigured) return false;
-
-    // Don't insert error or rate-limited entries
-    if (profileData.error || profileData.rateLimited) return false;
-
-    // Don't insert invalid entries
-    if (!this.isValidForRemote(profileData)) return false;
-
-    try {
-      const key = username.toLowerCase();
-      const dbData = this.profileToDb(key, profileData);
-
-      // Use POST without on_conflict - will fail if exists (that's ok)
-      const response = await fetch(
-        this.buildUrl('profiles'),
-        {
-          method: 'POST',
-          headers: this.getHeaders({ prefer: 'return=minimal' }),
-          body: JSON.stringify(dbData)
-        }
-      );
-
-      // 201 = inserted, 409 = conflict (already exists) - both are acceptable
-      return response.ok || response.status === 409;
-    } catch (e) {
-      console.error('[XCred] Remote insert failed:', e);
-      return false;
-    }
+    console.warn('[XCred] Direct Supabase writes disabled - use API validation');
+    return false;
   },
 
   /**
-   * MERGE update from Gun.js consensus (consensus required)
-   * @param {string} username - The username
-   * @param {Object} data - Profile data from Gun.js
-   * @param {number} consensusCount - Number of peers in consensus
-   * @returns {Promise<boolean>} Success status
+   * MERGE update from consensus - DEPRECATED
+   * Writes now go through API validation server
+   * @deprecated Use XCredAPI.requestValidation() instead
    */
   async mergeFromConsensus(username, data, consensusCount) {
-    if (!this.isEnabled || !this.isConfigured) return false;
-
-    if (consensusCount < 2) {
-      console.log('[XCred] Consensus threshold not met, skipping Supabase merge');
-      return false;
-    }
-
-    try {
-      const key = username.toLowerCase();
-      const dbData = this.profileToDb(key, data);
-
-      // Add consensus tracking fields
-      dbData.consensus_source = 'gun';
-      dbData.consensus_count = consensusCount;
-      dbData.consensus_at = new Date().toISOString();
-
-      // PATCH to update existing record only
-      const response = await fetch(
-        this.buildUrl('profiles', `username=eq.${encodeURIComponent(key)}`),
-        {
-          method: 'PATCH',
-          headers: this.getHeaders({ prefer: 'return=minimal' }),
-          body: JSON.stringify(dbData)
-        }
-      );
-
-      if (response.ok) {
-        console.log(`[XCred] Merged consensus data for ${username} (${consensusCount} peers)`);
-      }
-      return response.ok;
-    } catch (e) {
-      console.error('[XCred] Remote merge failed:', e);
-      return false;
-    }
+    console.warn('[XCred] Direct Supabase writes disabled - use API validation');
+    return false;
   },
 
   /**
@@ -277,53 +210,13 @@ const XLocationRemote = {
   },
 
   /**
-   * Save a profile to remote cache
-   * @param {string} username - The username
-   * @param {object} profileData - The profile data to cache
+   * Save a profile to remote cache - DEPRECATED
+   * Writes now go through API validation server
+   * @deprecated Use XCredAPI.requestValidation() instead
    */
   async set(username, profileData) {
-    if (!this.isEnabled || !this.isConfigured) {
-      return;
-    }
-
-    // Don't save error or rate-limited entries to remote
-    if (profileData.error || profileData.rateLimited) {
-      return;
-    }
-
-    // Don't save invalid entries
-    if (!this.isValidForRemote(profileData)) {
-      return;
-    }
-
-    try {
-      const key = username.toLowerCase();
-      const dbData = this.profileToDb(key, profileData);
-
-      // Use upsert via on_conflict query param + resolution=merge-duplicates header
-      const upsertUrl = this.buildUrl('profiles', 'on_conflict=username');
-
-      const response = await fetch(upsertUrl, {
-        method: 'POST',
-        headers: this.getHeaders({ prefer: 'resolution=merge-duplicates,return=minimal' }),
-        body: JSON.stringify(dbData)
-      });
-
-      if (!response.ok) {
-        // Handle constraint violations gracefully (invalid data rejected by server)
-        if (response.status === 400) {
-          const errorText = await response.text();
-          if (errorText.includes('violates check constraint')) {
-            console.warn('[XCred] Invalid data rejected by server:', errorText);
-            return; // Silently skip - data was invalid
-          }
-        }
-        throw new Error('Remote save failed');
-      }
-
-    } catch (e) {
-      // Silently fail - don't break the app if remote is down
-    }
+    console.warn('[XCred] Direct Supabase writes disabled - use API validation');
+    return;
   },
 
   /**
@@ -414,117 +307,13 @@ const XLocationRemote = {
   },
 
   /**
-   * Sync local IndexedDB cache to remote (called when remote sync is re-enabled)
-   * This helps build the shared cache faster
+   * Sync local to remote - DEPRECATED
+   * Writes now go through API validation server
+   * @deprecated Local data is validated through API before being stored remotely
    */
   async syncLocalToRemote() {
-    if (!this.isEnabled || !this.isConfigured || this.syncInProgress) {
-      return;
-    }
-
-    this.syncInProgress = true;
-
-    try {
-      // Get all valid profiles from local IndexedDB
-      const profiles = await this.getAllLocalProfiles();
-
-      if (profiles.length === 0) {
-        this.syncInProgress = false;
-        return;
-      }
-
-      // Batch upload
-      let synced = 0;
-      for (let i = 0; i < profiles.length; i += this.BATCH_SIZE) {
-        const batch = profiles.slice(i, i + this.BATCH_SIZE);
-        await this.batchUpload(batch);
-        synced += batch.length;
-
-        // Small delay between batches to avoid overwhelming the server
-        if (i + this.BATCH_SIZE < profiles.length) {
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      }
-
-      this.lastSyncTime = Date.now();
-
-    } catch (e) {
-      // Sync failed
-    } finally {
-      this.syncInProgress = false;
-    }
-  },
-
-  /**
-   * Get all valid profiles from local IndexedDB
-   */
-  async getAllLocalProfiles() {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open('XLocationCache', 2);
-
-      request.onerror = () => reject(request.error);
-
-      request.onsuccess = () => {
-        const db = request.result;
-        const transaction = db.transaction(['profiles'], 'readonly');
-        const store = transaction.objectStore('profiles');
-        const getAllRequest = store.getAll();
-
-        getAllRequest.onerror = () => reject(getAllRequest.error);
-        getAllRequest.onsuccess = () => {
-          const profiles = getAllRequest.result.filter(p => this.isValidForRemote(p));
-          resolve(profiles);
-        };
-      };
-    });
-  },
-
-  /**
-   * Batch upload profiles to remote (upsert - update if exists, insert if not)
-   */
-  async batchUpload(profiles) {
-    if (profiles.length === 0) return;
-
-    const dbRows = profiles.map(p => {
-      try {
-        return this.profileToDb(p.username, p);
-      } catch (e) {
-        return null;
-      }
-    }).filter(row => row !== null);
-
-    if (dbRows.length === 0) return;
-
-    // Deduplicate by username (keep the most recent entry)
-    const seen = new Map();
-    for (const row of dbRows) {
-      const key = row.username.toLowerCase();
-      if (!seen.has(key) || new Date(row.cached_at) > new Date(seen.get(key).cached_at)) {
-        seen.set(key, row);
-      }
-    }
-    const dedupedRows = Array.from(seen.values());
-
-    // Use on_conflict=username for upsert behavior
-    const url = this.buildUrl('profiles', 'on_conflict=username');
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: this.getHeaders({ prefer: 'resolution=merge-duplicates,return=minimal' }),
-      body: JSON.stringify(dedupedRows)
-    });
-
-    if (!response.ok) {
-      // Handle constraint violations gracefully
-      if (response.status === 400) {
-        const errorText = await response.text();
-        if (errorText.includes('violates check constraint')) {
-          console.warn('[XCred] Some profiles rejected by server (invalid data)');
-          return; // Partial success is acceptable
-        }
-      }
-      throw new Error('Batch upload failed');
-    }
+    console.warn('[XCred] Direct Supabase sync disabled - use API validation');
+    return;
   },
 
   /**

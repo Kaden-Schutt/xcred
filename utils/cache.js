@@ -287,7 +287,7 @@ const XLocationCache = {
   },
 
   /**
-   * Store profile data in cache (both local and remote)
+   * Store profile data in cache (both local and remote via API validation)
    * @param {string} username - The username
    * @param {object} profileData - The profile data to cache
    * @param {boolean} skipOnRateLimit - If true, don't cache rate limit errors
@@ -335,26 +335,17 @@ const XLocationCache = {
       request.onsuccess = () => resolve();
     });
 
-    // Also save to remote caches (fire and forget - don't block on these)
-
-    // Gun.js P2P broadcast (async, non-blocking)
-    if (typeof XLocationGun !== 'undefined' && XLocationGun.isReady()) {
-      XLocationGun.set(username, data).catch(() => {});
+    // Request server-signed validation (fire and forget - don't block)
+    // This replaces direct Supabase writes - all remote writes now go through API
+    if (this.useRemoteCache && typeof XLocationVPS !== 'undefined') {
+      XLocationVPS.requestValidation(username).catch(() => {
+        // API validation request failed - data stays local only
+      });
     }
 
-    // Supabase: INSERT for new profiles, let Gun.js consensus handle updates
-    if (this.useRemoteCache && typeof XLocationRemote !== 'undefined' && XLocationRemote.isEnabled) {
-      // Check if profile exists to determine insert vs skip
-      XLocationRemote.exists(username).then(exists => {
-        if (!exists) {
-          // New profile - insert directly (no consensus needed)
-          XLocationRemote.insert(username, profileData).catch(() => {});
-        }
-        // Existing profile - let Gun.js consensus handle updates via mergeFromConsensus
-      }).catch(() => {
-        // Existence check failed, try insert anyway (will fail silently if exists)
-        XLocationRemote.insert(username, profileData).catch(() => {});
-      });
+    // Gun.js P2P broadcast for local network sync (validators will pick this up)
+    if (typeof XLocationGun !== 'undefined' && XLocationGun.isReady()) {
+      XLocationGun.set(username, data).catch(() => {});
     }
   },
 

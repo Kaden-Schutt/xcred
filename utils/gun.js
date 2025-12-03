@@ -338,90 +338,121 @@ const XLocationGun = {
     };
   },
 
-  // ========== PEER VALIDATION REQUESTS ==========
+  // ========== SERVER-SIGNED VALIDATION TASKS ==========
 
   /**
-   * Listen for validation requests from other peers
+   * Listen for server-signed validation tasks
+   * Tasks are pushed by API server to xcred/validation-tasks
    */
   listenForValidationRequests() {
     if (!this.gun) return;
 
-    this.gun.get('xcred/validation-requests').map().on(async (request, key) => {
-      if (!request || request.validated || request.nodeId === this.getNodeId()) return;
-
-      // Check if peer validation is enabled in settings
-      const settings = await this.getSettings();
-      if (!settings.peerValidation) return;
-
-      // Check validator budget
-      if (!this.canValidate()) {
-        console.log('[XCred Gun] Validator budget exhausted, skipping request');
-        return;
-      }
-
-      // Validate the profile
-      await this.handleValidationRequest(request);
+    // Listen for server-signed validation tasks (new system)
+    this.gun.get('xcred').get('validation-tasks').map().on(async (task, taskId) => {
+      if (!task || !task.signature) return;
+      await this.handleServerSignedTask(task, taskId);
     });
 
-    console.log('[XCred Gun] Listening for peer validation requests');
+    console.log('[XCred Gun] Listening for server-signed validation tasks');
   },
 
   /**
-   * Handle incoming validation request from peer
-   * @param {Object} request - Validation request
+   * Handle server-signed validation task
+   * @param {Object} task - Server-signed validation task
+   * @param {string} taskId - Task ID
    */
-  async handleValidationRequest(request) {
-    const { username, requestedBy, timestamp } = request;
+  async handleServerSignedTask(task, taskId) {
+    const myNodeId = this.getNodeId();
 
-    // Skip if request is too old (> 5 minutes)
-    if (Date.now() - timestamp > 5 * 60 * 1000) return;
+    // Skip if we're not selected as a validator
+    if (!task.selectedValidators || !task.selectedValidators.includes(myNodeId)) {
+      return;
+    }
+
+    // Skip if task is too old (> 5 minutes)
+    if (Date.now() - task.timestamp > 5 * 60 * 1000) {
+      console.log(`[XCred Gun] Task ${taskId} expired, skipping`);
+      return;
+    }
+
+    // Check if peer validation is enabled in settings
+    const settings = await this.getSettings();
+    if (!settings.peerValidation) return;
+
+    // Verify server signature before processing
+    if (typeof XLocationVPS !== 'undefined') {
+      const dataToVerify = {
+        taskId: task.taskId,
+        username: task.username,
+        timestamp: task.timestamp,
+        selectedValidators: task.selectedValidators,
+        serverPublicKey: task.serverPublicKey
+      };
+
+      const isValid = await XLocationVPS.verifyServerSignature(dataToVerify, task.signature);
+      if (!isValid) {
+        console.warn(`[XCred Gun] SECURITY: Invalid server signature for task ${taskId}`);
+        return;
+      }
+    }
+
+    // Check validator budget
+    if (!this.canValidate()) {
+      console.log('[XCred Gun] Validator budget exhausted, skipping task');
+      return;
+    }
 
     // Consume budget
     if (!this.consumeValidatorBudget()) return;
 
-    console.log(`[XCred Gun] Validating ${username} for peer ${requestedBy}`);
+    console.log(`[XCred Gun] Processing validation task ${taskId} for @${task.username}`);
 
-    // Fetch fresh data from X API (using XLocation from content.js)
+    // Fetch fresh data from X API
     try {
       if (typeof window.XLocation !== 'undefined' && window.XLocation.fetchProfileFromAPI) {
-        const freshData = await window.XLocation.fetchProfileFromAPI(username);
+        const freshData = await window.XLocation.fetchProfileFromAPI(task.username);
+
         if (freshData && freshData.createdAt) {
-          // Push validated data to Gun.js
-          await this.set(username, {
+          // Submit result to API server
+          if (typeof XLocationVPS !== 'undefined') {
+            const submitted = await XLocationVPS.submitValidationResult(task.taskId, freshData);
+            if (submitted) {
+              console.log(`[XCred Gun] Submitted validation result for @${task.username}`);
+            }
+          }
+
+          // Also push to Gun.js for local network sync
+          await this.set(task.username, {
             ...freshData,
-            _validatedBy: this.getNodeId(),
+            _validatedBy: myNodeId,
             _validatedAt: Date.now()
           });
-          console.log(`[XCred Gun] Validated ${username} successfully`);
         }
       }
     } catch (e) {
-      console.error(`[XCred Gun] Validation failed for ${username}:`, e);
+      console.error(`[XCred Gun] Validation failed for ${task.username}:`, e);
     }
   },
 
   /**
-   * Request other peers to validate stale data
+   * Request validation via API (server-mediated system)
    * @param {string} username - Twitter username
    */
-  async requestPeerValidation(username) {
-    if (!this.gun) return;
-
-    const requestId = `${username}_${Date.now()}`;
-    this.gun.get('xcred/validation-requests').get(requestId).put({
-      username: username.toLowerCase(),
-      requestedBy: this.getNodeId(),
-      timestamp: Date.now(),
-      validated: false
-    });
-
-    console.log(`[XCred Gun] Requested peer validation for ${username}`);
+  async requestValidation(username) {
+    if (typeof XLocationVPS !== 'undefined') {
+      try {
+        await XLocationVPS.requestValidation(username);
+        console.log(`[XCred Gun] Requested API validation for ${username}`);
+      } catch (e) {
+        console.error(`[XCred Gun] API validation request failed for ${username}:`, e);
+      }
+    }
   },
 
   // ========== STALE DATA HANDLING ==========
 
   /**
-   * Handle stale data by triggering refresh flow
+   * Handle stale data by triggering refresh via API validation
    * @param {string} username - Twitter username
    * @param {Object} staleData - Existing stale data
    * @returns {Promise<Object>} Fresh or stale data
@@ -429,27 +460,10 @@ const XLocationGun = {
   async handleStaleData(username, staleData) {
     console.log(`[XCred Gun] Stale data detected for ${username}, initiating refresh`);
 
-    // 1. Try to fetch fresh data ourselves first
-    try {
-      if (typeof window.XLocation !== 'undefined' && window.XLocation.fetchProfileFromAPI) {
-        const freshData = await window.XLocation.fetchProfileFromAPI(username);
-        if (freshData && freshData.createdAt) {
-          // Got fresh data - push to Gun.js for peer consensus
-          await this.set(username, freshData);
+    // Request server-validated refresh via API
+    await this.requestValidation(username);
 
-          // Also request peer validation to build consensus
-          await this.requestPeerValidation(username);
-
-          return freshData;
-        }
-      }
-    } catch (e) {
-      // We couldn't fetch (rate limited, etc.) - request peers to validate
-      console.log(`[XCred Gun] Couldn't fetch ${username}, requesting peer validation`);
-      await this.requestPeerValidation(username);
-    }
-
-    // Return stale data for now, it will be updated when consensus is reached
+    // Return stale data for now, it will be updated when validation completes
     return staleData;
   },
 
