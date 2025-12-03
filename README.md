@@ -1,7 +1,7 @@
 # XCred - Account Transparency for X/Twitter
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.2.5-blue.svg)](https://github.com/Kaden-Schutt/xcred/releases/latest)
+[![Version](https://img.shields.io/badge/version-1.2.6-blue.svg)](https://github.com/Kaden-Schutt/xcred/releases/latest)
 
 **See who you're really talking to.** XCred is a free, open-source Chrome extension that adds credibility indicators to your X/Twitter timeline.
 

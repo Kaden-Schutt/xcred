@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "XCred",
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "Country flags & credibility scores on your X timeline. Shows account location, platform, and verification instantly.",
   "permissions": [
     "storage",

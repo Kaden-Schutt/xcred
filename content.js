@@ -436,6 +436,7 @@
 
     /**
      * Fetch profile data from X via GraphQL API (optimized)
+     * Uses parallel fetching: local X API + server validation race
      * @param {string} username - The username to fetch
      */
     async fetchProfile(username) {
@@ -460,78 +461,96 @@
       }
 
       try {
-        // Lightweight API-only approach
+        // Start server validation request in background (fire and forget for now)
+        // This populates the shared cache for future users
+        let serverPromise = null;
+        if (typeof XCredAPI !== 'undefined') {
+          serverPromise = XCredAPI.requestValidation(username)
+            .then(result => {
+              if (result && result.status === 'validated' && result.profileData) {
+                return {
+                  ...result.profileData,
+                  _cacheSource: 'api_server',
+                  _serverSignature: result.serverSignature
+                };
+              }
+              return null;
+            })
+            .catch(() => null);
+        }
+
+        // Try local X API first (primary path)
         let profileData = await this.fetchFromAPI(username);
 
-        // Handle rate limiting - try cache first, then re-queue
-        if (profileData && profileData.rateLimited) {
-          // Try to show cached data even if we're rate limited
-          try {
-            const cached = await XLocationCache.get(username);
-            if (cached && !cached.rateLimited && !cached.error) {
-              pending.elements.forEach(element => {
-                if (document.contains(element)) {
-                  this.injectIndicator(element, cached);
-                }
-              });
-              this.pendingRequests.delete(username);
-              return;
-            }
-          } catch (e) {
-            // Ignore cache errors during rate limit fallback
-          }
+        // If local succeeded, use it immediately
+        if (profileData && !profileData.rateLimited) {
+          // Cache the result
+          await XLocationCache.set(username, profileData, true);
 
-          // No cached data - try API server fallback
-          try {
-            if (typeof XCredAPI !== 'undefined') {
-              console.log(`[XCred] Rate limited - trying API fallback for @${username}`);
-              const apiResult = await XCredAPI.requestValidation(username);
-              if (apiResult && apiResult.status === 'validated' && apiResult.profileData) {
-                // Server validated successfully - use the data
-                const serverData = {
-                  ...apiResult.profileData,
-                  _cacheSource: 'api_fallback',
-                  _serverSignature: apiResult.serverSignature
-                };
-                await XLocationCache.set(username, serverData);
-                pending.elements.forEach(element => {
-                  if (document.contains(element)) {
-                    this.injectIndicator(element, serverData);
-                  }
-                });
-                this.pendingRequests.delete(username);
-                console.log(`[XCred] API fallback success for @${username}`);
-                return;
+          // Update all tweet elements for this user
+          pending.elements.forEach(element => {
+            if (document.contains(element)) {
+              this.injectIndicator(element, profileData);
+            }
+          });
+
+          this.pendingRequests.delete(username);
+          return;
+        }
+
+        // Local failed or rate limited - wait for server with timeout
+        if (serverPromise) {
+          console.log(`[XCred] Local unavailable for @${username}, waiting for server...`);
+
+          // Race server response against 5s timeout
+          const serverData = await Promise.race([
+            serverPromise,
+            new Promise(resolve => setTimeout(() => resolve(null), 5000))
+          ]);
+
+          if (serverData) {
+            console.log(`[XCred] Server provided data for @${username}`);
+            await XLocationCache.set(username, serverData);
+            pending.elements.forEach(element => {
+              if (document.contains(element)) {
+                this.injectIndicator(element, serverData);
               }
-            }
-          } catch (e) {
-            console.warn('[XCred] API fallback failed:', e.message);
+            });
+            this.pendingRequests.delete(username);
+            return;
           }
+        }
 
-          // API fallback failed too - re-queue for later
+        // Both failed - check cache one more time (server might have populated it)
+        try {
+          const cached = await XLocationCache.get(username);
+          if (cached && !cached.rateLimited && !cached.error) {
+            pending.elements.forEach(element => {
+              if (document.contains(element)) {
+                this.injectIndicator(element, cached);
+              }
+            });
+            this.pendingRequests.delete(username);
+            return;
+          }
+        } catch (e) {
+          // Ignore
+        }
+
+        // Everything failed - re-queue for later retry
+        if (profileData && profileData.rateLimited) {
           this.requestQueue.push(username);
-          return; // Keep pending request for retry
+          return;
         }
 
-        if (!profileData) {
-          profileData = {
-            username: username,
-            location: null,
-            locationCountry: null,
-            error: true
-          };
-        }
-
-        // Cache the result (skip rate limit errors)
-        await XLocationCache.set(username, profileData, true);
-
-        // Update all tweet elements for this user
-        pending.elements.forEach(element => {
-          if (document.contains(element)) {
-            this.injectIndicator(element, profileData);
-          }
-        });
-
+        // Mark as error so we don't keep retrying
+        profileData = {
+          username: username,
+          location: null,
+          locationCountry: null,
+          error: true
+        };
+        await XLocationCache.set(username, profileData);
         this.pendingRequests.delete(username);
 
       } catch (e) {
