@@ -1,7 +1,7 @@
 # XCred - Account Transparency for X/Twitter
 
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](LICENSE)
-[![Chrome Web Store](https://img.shields.io/badge/Chrome-Web%20Store-green)](https://chrome.google.com/webstore)
+[![Version](https://img.shields.io/badge/version-1.2.5-blue.svg)](https://github.com/Kaden-Schutt/xcred/releases/latest)
 
 **See who you're really talking to.** XCred is a free, open-source Chrome extension that adds credibility indicators to your X/Twitter timeline.
 
@@ -49,14 +49,14 @@ Visit the [Chrome Web Store](https://chrome.google.com/webstore) and click "Add 
 2. Open `chrome://extensions/`
 3. Enable "Developer mode" (top right)
 4. Click "Load unpacked"
-5. Select the `xcred-extension` directory
+5. Select the cloned directory
 
 ## Development
 
 ```bash
 # Clone the repo
-git clone https://github.com/your-username/xcred-extension.git
-cd xcred-extension
+git clone https://github.com/Kaden-Schutt/xcred.git
+cd xcred
 
 # Load in Chrome
 # 1. chrome://extensions/
@@ -67,7 +67,7 @@ cd xcred-extension
 ### Architecture
 
 ```
-xcred-extension/
+xcred/
 ├── manifest.json       # Chrome extension manifest (v3)
 ├── background.js       # Service worker
 ├── content.js          # Main content script (injected into X)
@@ -75,9 +75,11 @@ xcred-extension/
 ├── styles.css          # Injected styles
 ├── icons/              # Extension icons
 └── utils/
+    ├── api-client.js   # XCredAPI - server validation client
     ├── cache.js        # Three-tier caching system
     ├── flags.js        # Country flag utilities
-    └── supabase.js     # Remote cache integration
+    ├── gun.js          # P2P consensus layer
+    └── supabase.js     # Remote cache (read-only)
 ```
 
 ### Testing Changes
@@ -91,20 +93,12 @@ xcred-extension/
 - Uses only **publicly available** X transparency data
 - **No personal data** collection
 - Processing happens **locally** in your browser
-- Optional shared cache to reduce API calls
+- Server-validated shared cache to reduce API calls
 - [Full Privacy Policy](https://www.xcred.org/privacy.html)
 
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
-
-## Roadmap
-
-XCred follows an Open Core model:
-- **XCred (free)** - AGPL-3.0 licensed, all core features
-- **XCred+ (future)** - Premium features like analytics, filtering, exports
-
-See [FUTURE-ROADMAP.md](../FUTURE-ROADMAP.md) for planned features.
 
 ## License
 
